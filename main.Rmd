@@ -1,0 +1,18 @@
+---
+title: "Proyecto - Pensiones I"
+author: 
+  - Luis Fernando Amey Apuy - C20470
+  - Javier Hernández Navarro - C13674
+  - Anthony Mauricio Jiménez Navarro - C24067
+  - Gustavo Alberto Amador Fonseca - C20459
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    self_contained: true
+    highlight: tango
+---
+# Librerías e importaciones
+```{r, warning=FALSE, message=FALSE}
+source("cod/setup.R")
+source("cod/load_database.R")
+```
