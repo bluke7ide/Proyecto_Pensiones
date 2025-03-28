@@ -13,3 +13,6 @@ BD_Financiero <- list(
   )
 BD_Pensionados <- read_excel("data/BD_Pensionados.xlsx", 
                              sheet = "Fondo A")
+SUPEN <- read_excel("data/tavid2000-2150.xls")
+IPC <- read_excel("data/ipc_inec.xlsx", skip = 3)
+

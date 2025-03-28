@@ -16,3 +16,13 @@ output:
 source("cod/setup.R")
 source("cod/load_database.R")
 ```
+
+# Trabajadores activos
+```{r}
+ultimo_año <- BD_Cotizantes %>%
+  select(tail(names(.), 12)) %>% 
+  mutate(activo = rowSums(select(., tail(names(.), 12)) != 0) > 0) %>% 
+  select(activo)
+```
+
+
