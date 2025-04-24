@@ -68,7 +68,6 @@ fig <- ggplot(df_piramide, aes(x = grupo_edad, y = poblacion, fill = sexo)) +
     limits = c(-1, 1) * max(abs(df_piramide$poblacion))
   ) +
   labs(
-    title = "Pirámide Poblacional",
     x = "Grupo de Edad",
     y = "Población",
     fill = "Sexo"
@@ -122,7 +121,6 @@ fig <- ggplot(resumen, aes(x = grupo, y = n, fill = categoria)) +
   geom_text(aes(label = n), position = position_stack(vjust = 0.5), color = "black", size = 4) +
   scale_fill_manual(values = colores) +
   labs(
-    title = "Resumen de la Población por Sexo y Estado",
     x = NULL,
     y = "Cantidad de Personas",
     fill = NULL
@@ -165,8 +163,7 @@ fig <- ggplot(cotizantes_activos, aes(x = factor(edad), fill = sexo)) +
   ) +
   labs(
     x = "Edad",
-    y = "Cantidad de cotizantes activos",
-    title = "Distribución por edad y sexo de los cotizantes activos"
+    y = "Cantidad de cotizantes activos"
   ) +
   theme_minimal() 
 
@@ -185,8 +182,7 @@ fig <- ggplot(cotizantes, aes(x = antiguedad, fill = sexo)) +
   geom_bar(position = "stack") +
   labs(
     x = "Años de antiguedad en el régimen",
-    y = "Cantidad de personas",
-    title = "Distribución por antiguedad y sexo de los cotizantes"
+    y = "Cantidad de personas"
   ) +
   theme_minimal()
 
@@ -210,8 +206,7 @@ fig <- ggplot(pensionados, aes(x = factor(edad), fill = sexo)) +
   ) +
   labs(
     x = "Edad",
-    y = "Cantidad de cotizantes activos",
-    title = "Distribución por edad y sexo de los pensionados"
+    y = "Cantidad de cotizantes activos"
   ) +
   theme_minimal() 
 ggsave("res/dist_pensionados.pdf", fig)
@@ -224,8 +219,7 @@ fig <- ggplot(pensionados, aes(x = antiguedad, fill = sexo)) +
   geom_bar(position = "stack") +
   labs(
     x = "Años pensionado",
-    y = "Cantidad de pensionados",
-    title = "Distribución por antiguedad y sexo de los pensionados"
+    y = "Cantidad de pensionados"
   ) +
   theme_minimal() 
 ggsave("res/pensionados_ant.pdf", fig)
@@ -272,8 +266,7 @@ fig <- ggplot(afiliados, aes(x = fecha, y = activos)) +
   geom_point(color = 'purple') +
     labs(
     x = "Fecha",
-    y = "Cantidad de afiliados",
-    title = "Comportamiento de afiliados en el transcurso del tiempo"
+    y = "Cantidad de afiliados"
   ) +
   theme_minimal() 
 ggsave("res/comportamiento.pdf", fig)
