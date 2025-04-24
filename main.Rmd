@@ -60,7 +60,7 @@ df_piramide <- df %>%
   summarise(poblacion = n(), .groups = "drop") %>%
   mutate(poblacion = ifelse(sexo == "M", -poblacion, poblacion))
 
-ggplot(df_piramide, aes(x = grupo_edad, y = poblacion, fill = sexo)) +
+fig <- ggplot(df_piramide, aes(x = grupo_edad, y = poblacion, fill = sexo)) +
   geom_bar(stat = "identity", width = 0.9) +
   coord_flip() +
   scale_y_continuous(
@@ -78,6 +78,8 @@ ggplot(df_piramide, aes(x = grupo_edad, y = poblacion, fill = sexo)) +
     axis.text.y = element_text(size = 10),
     plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
   )
+
+ggsave("res/piramide.pdf", fig)
 
 
 ```
@@ -104,10 +106,8 @@ estado_df <- df %>%
   count(categoria = estado) %>%
   mutate(grupo = "Estado")
 
-# Unimos todo
 resumen <- bind_rows(sexo_df, estado_df)
 
-# Paleta personalizada agradable (puede ser Set2, o pastel)
 colores <- c(
   "Hombre" = "#377EB8",
   "Mujer" = "#984EA3",
@@ -116,8 +116,8 @@ colores <- c(
   "Pensionado" = "#999999"
 )
 
-# Gráfico
-ggplot(resumen, aes(x = grupo, y = n, fill = categoria)) +
+
+fig <- ggplot(resumen, aes(x = grupo, y = n, fill = categoria)) +
   geom_bar(stat = "identity", position = "stack", width = 0.6) +
   geom_text(aes(label = n), position = position_stack(vjust = 0.5), color = "black", size = 4) +
   scale_fill_manual(values = colores) +
@@ -134,6 +134,8 @@ ggplot(resumen, aes(x = grupo, y = n, fill = categoria)) +
     legend.position = "right"
   )
 
+ggsave("res/resumen_pob.pdf", fig)
+
 ```
 
 # Población activa
@@ -144,11 +146,11 @@ bar_totals <- cotizantes_activos %>%
   count(edad) %>%
   mutate(
     mitad = n / 2,
-    edad = factor(edad)  # Asegurar que edad sea factor como en el gráfico
+    edad = factor(edad)  
   )
 
-# Crear gráfico
-ggplot(cotizantes_activos, aes(x = factor(edad), fill = sexo)) +
+
+fig <- ggplot(cotizantes_activos, aes(x = factor(edad), fill = sexo)) +
   geom_bar(position = "stack") +
   # Línea horizontal en la mitad de cada barra
   geom_segment(
@@ -167,6 +169,8 @@ ggplot(cotizantes_activos, aes(x = factor(edad), fill = sexo)) +
     title = "Distribución por edad y sexo de los cotizantes activos"
   ) +
   theme_minimal() 
+
+ggsave("res/dist_activos.pdf", fig)
 ```
 
 
@@ -177,7 +181,7 @@ cotizantes$antiguedad <- 2024 - year(as_datetime(names(BD_Cotizantes)[cotizantes
 ```
 
 ```{r}
-ggplot(cotizantes, aes(x = antiguedad, fill = sexo)) + 
+fig <- ggplot(cotizantes, aes(x = antiguedad, fill = sexo)) + 
   geom_bar(position = "stack") +
   labs(
     x = "Años de antiguedad en el régimen",
@@ -185,6 +189,8 @@ ggplot(cotizantes, aes(x = antiguedad, fill = sexo)) +
     title = "Distribución por antiguedad y sexo de los cotizantes"
   ) +
   theme_minimal()
+
+ggsave("res/activos_ant.pdf", fig)
 ```
 
 
@@ -194,11 +200,10 @@ bar_totals <- pensionados %>%
   count(edad) %>%
   mutate(
     mitad = n / 2,
-    edad = factor(edad)  # Asegurar que edad sea factor como en el gráfico
+    edad = factor(edad) 
   )
 
-# Crear gráfico
-ggplot(pensionados, aes(x = factor(edad), fill = sexo)) +
+fig <- ggplot(pensionados, aes(x = factor(edad), fill = sexo)) +
   geom_bar(position = "stack") +
   scale_x_discrete(
   breaks = as.character(seq(min(pensionados$edad), max(pensionados$edad), by = 5))
@@ -209,12 +214,13 @@ ggplot(pensionados, aes(x = factor(edad), fill = sexo)) +
     title = "Distribución por edad y sexo de los pensionados"
   ) +
   theme_minimal() 
+ggsave("res/dist_pensionados.pdf", fig)
 ```
 
 ```{r}
 pensionados <- pensionados %>% 
   mutate(antiguedad = 2024 - year(BD_Pensionados$`Rige de la Pensión`))
-ggplot(pensionados, aes(x = antiguedad, fill = sexo)) + 
+fig <- ggplot(pensionados, aes(x = antiguedad, fill = sexo)) + 
   geom_bar(position = "stack") +
   labs(
     x = "Años pensionado",
@@ -222,6 +228,7 @@ ggplot(pensionados, aes(x = antiguedad, fill = sexo)) +
     title = "Distribución por antiguedad y sexo de los pensionados"
   ) +
   theme_minimal() 
+ggsave("res/pensionados_ant.pdf", fig)
 ```
 
 # Comportamiento de altas y bajas de afiliados
@@ -260,7 +267,7 @@ comportamientos <- cbind(
 
 ```{r}
 afiliados <- data.frame(fecha = colnames(BD_Cotizantes)[15:363], activos = colSums(activo))
-ggplot(afiliados, aes(x = fecha, y = activos)) + 
+fig <- ggplot(afiliados, aes(x = fecha, y = activos)) + 
   scale_x_discrete(breaks = afiliados$fecha[seq(1, nrow(afiliados), by = 60)]) +
   geom_point(color = 'purple') +
     labs(
@@ -269,10 +276,10 @@ ggplot(afiliados, aes(x = fecha, y = activos)) +
     title = "Comportamiento de afiliados en el transcurso del tiempo"
   ) +
   theme_minimal() 
+ggsave("res/comportamiento.pdf", fig)
 ```
 
 ```{r}
-
 diffs <- activo[, -1, drop = FALSE] - activo[, -ncol(activo), drop = FALSE]
 
 Altas     <- colSums(diffs ==  1)  # pasó de 0 a 1
