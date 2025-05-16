@@ -24,7 +24,8 @@ ultimo_año <- data.frame(activo = rowSums(BD_Cotizantes %>%
                                 select(tail(names(.), 12)) > 10000)>0)
 ```
 
-# Estructura de la población
+# Gráficos de CDR
+## Estructura de la población
 ```{r}
 cotizantes <- BD_Cotizantes %>% 
   select(2,3) %>% 
@@ -135,7 +136,7 @@ ggsave("res/resumen_pob.pdf", fig)
 
 ```
 
-# Población activa
+## Población activa
 ```{r}
 cotizantes_activos <- cotizantes[cotizantes$estado == 1, ]
 
@@ -189,7 +190,7 @@ ggsave("res/activos_ant.pdf", fig)
 ```
 
 
-# Población pensionada
+## Población pensionada
 ```{r}
 bar_totals <- pensionados %>%
   count(edad) %>%
@@ -224,7 +225,7 @@ fig <- ggplot(pensionados, aes(x = antiguedad, fill = sexo)) +
 ggsave("res/pensionados_ant.pdf", fig)
 ```
 
-# Comportamiento de altas y bajas de afiliados
+## Comportamiento de altas y bajas de afiliados
 ```{r}
 n_meses <- ncol(BD_Cotizantes) - 3
 
@@ -286,8 +287,127 @@ resultado <- data.frame(
 
 ```
 
-# Informe Situación Actual
+```{r}
+rm(activo,
+   afiliados, 
+   bar_totals,
+   comportamientos,
+   cotizantes,
+   cotizantes_activos,
+   df,
+   df_piramide,
+   diffs,
+   estado_df, 
+   fig,
+   pensionados,
+   poblacion,
+   resultado,
+   resumen,
+   sexo_df,
+   submat,
+   Altas, 
+   Bajas, 
+   colores,
+   cols_k,
+   k,
+   n_meses,
+   n_periodos)
+```
 
+# Informe Situación Actual
+## Reservas
+
+Se van a tomar como variables:
+- La tasa de interés
+- La tasa de inflación
+Para poder hacer un análisis de sensibilidad luego
+
+### Población general
+```{r}
+cotizantes <- BD_Cotizantes %>% select(Fec.Nac, Sexo)
+names(cotizantes) <- c('fecha_nac', 'sexo')
+pensionados <- BD_Pensionados %>% select(FEC_NAC, SEXO)
+names(pensionados) <- c('fecha_nac', 'sexo')
+pensionados <- pensionados  %>%
+  mutate(sexo = ifelse(sexo == "M", 1, 2))
+poblacion <- rbind(cotizantes, pensionados) %>% mutate(
+  edad = 2024 - year(poblacion$fecha_nac)
+)
+cuentas <- poblacion %>% count(sexo,edad)
+unicos <- cuentas %>% select(sexo, edad)
+```
+
+```{r}
+#' Calcula las probabilidades de vida para todos los años de cada persona
+#' @param df_obs caracteristicas de cada persona
+#' @param df_prob tabla dinámica de las proabilidades de muerte
+#' @return all_qx (una lista que adentro contiene: 1. Una lista con las probabilidades de sobrevivencia para cada persona. 2. El sexo. 3. La edad)
+get_px <- function(df_obs, df_prob){
+  c <- 0
+  all_px = list()
+  
+  #Se filtra la base con las probabilidades según el sexo
+  hombres <- df_prob[df_prob$sex == 1,]
+  mujeres <- df_prob[df_prob$sex == 2,]
+  
+  #se itera sobre todas las observaciones del df_obs
+  for (i in 1:nrow(df_obs)){ 
+    x <- df_obs$edad[i]
+    y <- 2025 
+    local_px <- list()
+    n <- 1 
+    c <- c+1
+    
+    # Primer filtro: sexo
+    if(df_obs$sexo[i] == 1){
+      df <- hombres
+    } else {
+      df <- mujeres
+    }
+    
+    # Para encontrar todas las probabilidades futuras de esa persona
+    while (any(df$edad == x & df$year == y)) {
+      # Filtrar datos por edad y año actual para encontrar el qx
+      qx <- df[df$edad == x & df$year == y , 6]
+      
+      # Se calcula la probabilidad de sobrevivencia
+      local_px[n] <- 1 - qx
+
+      n <- n + 1
+      x <- x + 1
+      y <- y + 1
+    }
+
+    # Se guardan las probabilidades
+    all_px[[c]] <- local_px 
+  }
+  
+  #Se devuelve la lista con una lista para cada observación
+  return(all_px)
+}
+```
+
+```{r}
+px <- get_px(unicos, SUPEN)
+unicos$id <- 1:141
+```
+
+```{r}
+pensionados <- pensionados %>% mutate(
+  edad = 2024 - year(pensionados$fecha_nac)
+)
+pen <- cbind(pensionados, BD_Pensionados) 
+pen <- pen %>% select(-c(4,7,8))
+```
+
+```{r}
+reserva <- function(int, inf){
+  int_ef <- ((1+int)/(1+inf))^(-1/12) # 1! interes real? Qué interés? 5%?
+  # 2! mortalidades/invalidez mensuales? o anual, con todo del año traído a VP?
+  # 3! cotizaciones futuras?
+  # 4! 
+}
+```
 
 
 
