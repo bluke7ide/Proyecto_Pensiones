@@ -315,14 +315,11 @@ rm(activo,
 ```
 
 # Informe Situación Actual
-## Reservas
-
+## Población general
 Se van a tomar como variables:
 - La tasa de interés
 - La tasa de inflación
 Para poder hacer un análisis de sensibilidad luego
-
-### Población general
 ```{r}
 cotizantes <- BD_Cotizantes %>% select(Fec.Nac, Sexo)
 names(cotizantes) <- c('fecha_nac', 'sexo')
@@ -336,6 +333,16 @@ poblacion <- rbind(cotizantes, pensionados) %>% mutate(
 cuentas <- poblacion %>% count(sexo,edad)
 unicos <- cuentas %>% select(sexo, edad)
 ```
+
+```{r}
+pensionados <- pensionados %>% mutate(
+  edad = 2024 - year(pensionados$fecha_nac)
+)
+pen <- cbind(pensionados, BD_Pensionados) 
+pen <- pen %>% select(-c(4,7,8))
+```
+
+## Obtener probabilidades de muerte
 
 ```{r}
 #' Calcula las probabilidades de vida para todos los años de cada persona
@@ -392,19 +399,38 @@ px <- get_px(unicos, SUPEN)
 unicos$id <- 1:141
 ```
 
-```{r}
-pensionados <- pensionados %>% mutate(
-  edad = 2024 - year(pensionados$fecha_nac)
-)
-pen <- cbind(pensionados, BD_Pensionados) 
-pen <- pen %>% select(-c(4,7,8))
-```
+## Propiedades de cotización
 
 ```{r}
+prop_cot <- function(){
+  cot <- BD_Cotizantes %>% select(-1,-2,-3)
+  data <- cot != 0
+  does_cot <- sapply(1:nrow(data), function(x) which(data[x,]))
+  inicios <- sapply(1:nrow(data), function(x) first(does_cot[[x]]))
+  
+  # Densidades de cotización
+  dens_cot <- sapply(1:nrow(data), function(x) mean(data[x,inicios[x]:ncol(data)]))
+  
+  # Promedio de los 300 mejores salarios
+  s65 <- sapply(1:nrow(data), function(x) 
+    mean(head(sort(unlist(cot[x,does_cot[[x]]]), decreasing = T), 300)))
+  
+  
+  
+  return(list(dens_cot, s65))
+}
+```
+
+## Reservas
+```{r}
 reserva <- function(int, inf){
-  int_ef <- ((1+int)/(1+inf))^(-1/12) # 1! interes real? Qué interés? 5%?
-  # 2! mortalidades/invalidez mensuales? o anual, con todo del año traído a VP?
-  # 3! cotizaciones futuras?
+  int_ef <- ((1+int)/(1+inf))^(-1/12) 
+  
+  
+  
+  # 1! interes real? Qué interés? 5%? R/ fundamentar
+  # 2! mortalidades/invalidez mensuales? o anual, con todo del año traído a VP? R/ densidad cotización
+  # 3! cotizaciones futuras? R/ salario proyectado
   # 4! 
 }
 ```
