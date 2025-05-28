@@ -332,10 +332,12 @@ unicos <- cuentas %>% select(sexo, edad)
 
 ```{r}
 pensionados <- pensionados %>% mutate(
-  edad = 2024 - year(pensionados$fecha_nac)
+  edad = 2024 - year(pensionados$fecha_nac),
+  meses = 12 - month(pensionados$fecha_nac)
 )
 cotizantes <- cotizantes %>% mutate(
-  edad = 2024 - year(cotizantes$fecha_nac)
+  edad = 2024 - year(cotizantes$fecha_nac),
+  meses = 12 - month(cotizantes$fecha_nac)
 )
 cotizaciones <- BD_Cotizantes %>% select(-1,-2,-3)
 pensionados <- cbind(pensionados, BD_Pensionados) 
@@ -347,69 +349,13 @@ pensionados <- pensionados %>% mutate(
 niveles <- 110.39017/IPC$Nivel[229:588]
 ```
 
-## Obtener probabilidades de muerte
-```{r}
-#' Calcula las probabilidades de vida para todos los años de cada persona
-#' @param df_obs caracteristicas de cada persona
-#' @param df_prob tabla dinámica de las proabilidades de muerte
-#' @return all_qx (una lista que adentro contiene: 1. Una lista con las probabilidades de sobrevivencia para cada persona. 2. El sexo. 3. La edad)
-get_px <- function(df_obs, df_prob){
-  c <- 0
-  all_px = list()
-  
-  #Se filtra la base con las probabilidades según el sexo
-  hombres <- df_prob[df_prob$sex == 1,]
-  mujeres <- df_prob[df_prob$sex == 2,]
-  
-  #se itera sobre todas las observaciones del df_obs
-  for (i in 1:nrow(df_obs)){ 
-    x <- df_obs$edad[i]
-    y <- 2025 
-    local_px <- list()
-    n <- 1 
-    c <- c+1
-    
-    # Primer filtro: sexo
-    if(df_obs$sexo[i] == 1){
-      df <- hombres
-    } else {
-      df <- mujeres
-    }
-    
-    # Para encontrar todas las probabilidades futuras de esa persona
-    while (any(df$edad == x & df$year == y)) {
-      # Filtrar datos por edad y año actual para encontrar el qx
-      qx <- df[df$edad == x & df$year == y , 6]
-      
-      # Se calcula la probabilidad de sobrevivencia
-      local_px[n] <- 1 - qx
 
-      n <- n + 1
-      x <- x + 1
-      y <- y + 1
-    }
-
-    # Se guardan las probabilidades
-    all_px[[c]] <- local_px 
-  }
-  
-  #Se devuelve la lista con una lista para cada observación
-  return(all_px)
-}
-```
-
-```{r}
-px <- get_px(unicos, SUPEN)
-unicos$id <- 1:141
-```
 
 ```{r}
 rm(BD_Cotizantes,
    BD_Pensionados,
    BD_Financiero,
-   get_px,
    ultimo_año,
-   SUPEN,
    poblacion, 
    IPC, 
    cuentas
@@ -449,7 +395,7 @@ cot_prop <- function(){
   Sx <- sapply(1:nrow(data), function(x) 
     mean(head(sort(calc_pen[[x]], decreasing = T), 300)))
   
-  return(data.frame(densidades = dens_cot, pension = Sx, cuotas = cuotas))
+  return(data.frame(densidades = dens_cot, sal_prom = Sx, cuotas = cuotas))
 }
 ```
 
@@ -457,6 +403,9 @@ cot_prop <- function(){
 cotizantes <- cbind(cotizantes, cot_prop())
 ```
 
+```{r}
+find_qx <- function(edades, )
+```
 
 
 
@@ -464,6 +413,10 @@ cotizantes <- cbind(cotizantes, cot_prop())
 prueba <- function(int, inf){
   int_ef <- ((1+int)/(1+inf))^(-1/12) 
   years <- 0:95 + 2024
+  cot_hombres <- cotizantes[cotizantes$sexo == 1, ] %>% select(-2)
+  cot_mujeres <- cotizantes[cotizantes$sexo == 2, ] %>% select(-2)
+  pen_hombres <- pensionados[pensionados$sexo == 1, ] %>% select(-2)
+  pen_mujeres <- pensionados[pensionados$sexo == 2, ] %>% select(-2)
   
 }
 ```
