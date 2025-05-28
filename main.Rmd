@@ -18,10 +18,9 @@ source("cod/load_database.R")
 ```
 
 # Tomar los trabajadores activos
-Una cuota de 10000 no cuenta como cotización
 ```{r}
 ultimo_año <- data.frame(activo = rowSums(BD_Cotizantes %>%
-                                select(tail(names(.), 12)) > 10000)>0)
+                                select(tail(names(.), 12)) > 0)>0)
 ```
 
 # Gráficos de CDR
@@ -314,12 +313,8 @@ rm(activo,
    n_periodos)
 ```
 
-# Informe Situación Actual
+# Preparación Balance
 ## Población general
-Se van a tomar como variables:
-- La tasa de interés
-- La tasa de inflación
-Para poder hacer un análisis de sensibilidad luego
 ```{r}
 cotizantes <- BD_Cotizantes %>% select(Fec.Nac, Sexo)
 names(cotizantes) <- c('fecha_nac', 'sexo')
@@ -327,7 +322,8 @@ pensionados <- BD_Pensionados %>% select(FEC_NAC, SEXO)
 names(pensionados) <- c('fecha_nac', 'sexo')
 pensionados <- pensionados  %>%
   mutate(sexo = ifelse(sexo == "M", 1, 2))
-poblacion <- rbind(cotizantes, pensionados) %>% mutate(
+poblacion <- rbind(cotizantes, pensionados) 
+poblacion <- poblacion %>% mutate(
   edad = 2024 - year(poblacion$fecha_nac)
 )
 cuentas <- poblacion %>% count(sexo,edad)
@@ -338,12 +334,20 @@ unicos <- cuentas %>% select(sexo, edad)
 pensionados <- pensionados %>% mutate(
   edad = 2024 - year(pensionados$fecha_nac)
 )
-pen <- cbind(pensionados, BD_Pensionados) 
-pen <- pen %>% select(-c(4,7,8))
+cotizantes <- cotizantes %>% mutate(
+  edad = 2024 - year(cotizantes$fecha_nac)
+)
+cotizaciones <- BD_Cotizantes %>% select(-1,-2,-3)
+pensionados <- cbind(pensionados, BD_Pensionados) 
+pensionados <- pensionados %>% select(-c(4,7,8))
+pensionados <- pensionados %>% mutate(
+  edad = 2024 - year(pensionados$fecha_nac)
+)
+
+niveles <- 110.39017/IPC$Nivel[229:588]
 ```
 
 ## Obtener probabilidades de muerte
-
 ```{r}
 #' Calcula las probabilidades de vida para todos los años de cada persona
 #' @param df_obs caracteristicas de cada persona
@@ -399,39 +403,68 @@ px <- get_px(unicos, SUPEN)
 unicos$id <- 1:141
 ```
 
-## Propiedades de cotización
-
 ```{r}
-prop_cot <- function(){
-  cot <- BD_Cotizantes %>% select(-1,-2,-3)
-  data <- cot != 0
+rm(BD_Cotizantes,
+   BD_Pensionados,
+   BD_Financiero,
+   get_px,
+   ultimo_año,
+   SUPEN,
+   poblacion, 
+   IPC, 
+   cuentas
+   )
+```
+
+## Propiedades de cotización
+```{r}
+cot_prop <- function(){
+  # Tomando el valor presente
+  vp_cot <- sapply(1:ncol(cotizaciones), function(x) t(cotizaciones[,x]) * niveles[[x]])
+  
+  # Salarios más de 10 mil cuentan como cotizaciones
+  data <- vp_cot > 10000
   does_cot <- sapply(1:nrow(data), function(x) which(data[x,]))
   inicios <- sapply(1:nrow(data), function(x) first(does_cot[[x]]))
   
+  # Cantidad de cuotas
+  cuotas <- rowSums(data)
+  
   # Densidades de cotización
-  dens_cot <- sapply(1:nrow(data), function(x) mean(data[x,inicios[x]:ncol(data)]))
+  dens_cot <- sapply(1:nrow(data), function(x) 
+    mean(data[x,inicios[x]:ncol(data)]))
   
   # Promedio de los 300 mejores salarios
-  s65 <- sapply(1:nrow(data), function(x) 
-    mean(head(sort(unlist(cot[x,does_cot[[x]]]), decreasing = T), 300)))
+  cot_pen <- vp_cot < 5e6
   
+    # a menos de que históricamente haya cotizado 5m, se veta
+  true_counts <- rowSums(1 - cot_pen)/cuotas > 0.5 # al menos más de la mitad 
+  cot_pen[true_counts,] <- TRUE
   
+    # Se fusionan las condiciones
+  cot_pen <- cot_pen & data
+  calc_pen <- sapply(1:nrow(data), function(x) vp_cot[x, cot_pen[x,]])
   
-  return(list(dens_cot, s65))
+    # Cálculo explícito
+  Sx <- sapply(1:nrow(data), function(x) 
+    mean(head(sort(calc_pen[[x]], decreasing = T), 300)))
+  
+  return(data.frame(densidades = dens_cot, pension = Sx, cuotas = cuotas))
 }
 ```
 
-## Reservas
 ```{r}
-reserva <- function(int, inf){
+cotizantes <- cbind(cotizantes, cot_prop())
+```
+
+
+
+
+```{r}
+prueba <- function(int, inf){
   int_ef <- ((1+int)/(1+inf))^(-1/12) 
+  years <- 0:95 + 2024
   
-  
-  
-  # 1! interes real? Qué interés? 5%? R/ fundamentar
-  # 2! mortalidades/invalidez mensuales? o anual, con todo del año traído a VP? R/ densidad cotización
-  # 3! cotizaciones futuras? R/ salario proyectado
-  # 4! 
 }
 ```
 
