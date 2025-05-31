@@ -412,14 +412,25 @@ names(cuotas) <- 0:60 + 2024
 ```
 
 ```{r}
-porc_sucesion <- function(x, ){
+porc_sucesion <- function(x, sexo, año){
   # se toma el cálculo de la pensión y se calculan, según la edad, las distribuciones de los porcentajes
+  sex_con <- 3 - sexo
+  if(x < 50){
+    porc_viu <- c(rep(50, 50-x), rep(60, 10), rep(70, 115-60))
+  } else if(x < 60){
+    porc_viu <- c(rep(60, 60-x), rep(70, 115-60))
+  } else {
+    porc_viu <- c(rep(70, 115-x))
+  }
+  return(porc_viu)
 }
 ```
 
 
 ```{r}
-find_qx <- function(edades, )
+find_qx <- function(x, sexo, año){
+  return(SUPEN[which(SUPEN$sex == sexo & SUPEN$year == año & SUPEN$edad == x),6])
+}
 ```
 
 
