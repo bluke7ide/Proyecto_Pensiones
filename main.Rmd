@@ -422,7 +422,17 @@ porc_sucesion <- function(x, sexo, año){
   } else {
     porc_viu <- c(rep(70, 115-x))
   }
-  return(porc_viu)
+  corte_viu <- porc_viu*all_tpx(x, sex_con, año)
+  # Vida hijo < 25
+  if(x-25<25){
+    porc_hij <- rep(30, x-25)
+  }
+  # Vida muerte conyuge
+  muerte_con <- all_deaths(x, sex_con, año)
+  vida_hijo <- (all_tpx(x, 1, 2025) + all_tpx(x, 2, 2025))/2
+  corte_huerf <- vida_con*30*vida_hijo
+    
+  
 }
 ```
 
@@ -431,7 +441,35 @@ porc_sucesion <- function(x, sexo, año){
 find_qx <- function(x, sexo, año){
   return(SUPEN[which(SUPEN$sex == sexo & SUPEN$year == año & SUPEN$edad == x),6])
 }
+
+find_life <- function(x, sexo, año){
+  return(sapply(0:(115-x), function(y) find_qx(x+y, 1,año + y)))
+}
+
+all_tpx <- function(x, sexo, año){
+  qx <- find_life(x, sex_con, año)
+  return(cumprod(1 - qx[-length(qx)]))
+}
+
+all_deaths <- function(x, sexo, año){
+  qx <- find_life(x, sex_con, año)
+  tpx <- cumprod(c(1, 1 - qx[-length(qx)]))
+  return(tpx*qx)
+}
 ```
+
+```{r}
+find_qi <- function(x, sexo, año){
+  return(invalidez[invalidez$Edad == x & invalidez$sexo == sexo, 3])
+}
+
+find_inv <- function(x, sexo, año){
+  return(sapply(0:(115-x), function(y) find_qi(x+y, 1,año + y)))
+}
+
+```
+
+
 
 
 ```{r}
