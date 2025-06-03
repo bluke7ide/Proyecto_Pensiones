@@ -438,26 +438,32 @@ find_qix <- function(x, sexo, año){
   return(invalidez[invalidez$Edad == x & invalidez$sexo == sexo, 3])
 }
 
-find_inv <- function(x, sexo, año){
-  return(sapply(0:(115-x), function(y) find_qi(x+y, 1,año + y)))
+all_qix <- function(x, sexo, año){
+  return(sapply(0:(115-x), function(y) find_qix(x+y, 1,año + y)))
 }
 
-all_tpix <- function(x, sexo, año){
-  qix <- find_inv(x, sexo, año)
-  return(cumprod(1 - qix[-length(qix)]))
-}
-
-all_inv <- function(x, sexo, año){
-  qix <- find_inv(x, sexo, año)
-  tpix <- cumprod(c(1, 1 - qix[-length(qix)]))
-  return(tpix*qix)
-}
+# all_tpix <- function(x, sexo, año){
+#   qix <- find_inv(x, sexo, año)
+#   return(cumprod(1 - qix[-length(qix)]))
+# }
+# 
+# all_inv <- function(x, sexo, año){
+#   qix <- find_inv(x, sexo, año)
+#   tpix <- cumprod(c(1, 1 - qix[-length(qix)]))
+#   return(tpix*qix)
+# }
 
 ```
 
 
 ```{r}
-porc_sucesion <- function(x, sexo, año){
+año <- 2025
+porc_pensiones <- function(id){
+  x <- cotizantes$edad[id]
+  sexo <- cotizantes$sexo[id]
+  dens <- cotizantes$densidades[id]
+  n_cot <- unlist(cuotas[id,1:min(61,(115-x))])
+  
   # Porcentajes conyuge
   sex_con <- 3 - sexo
     if(x < 50){
@@ -468,36 +474,63 @@ porc_sucesion <- function(x, sexo, año){
     porc_viu <- c(rep(0.7, 115-x))
   }
   
-  años <- 0:(115-x)
+
   qx <- all_qx(x, sexo, año)
   px <- 1 - qx
   v_px <- 1 - all_qx(x, sex_con, año)
-  tqx <- all_deaths(x, sexo, año)
-  sim <- data.frame(pen = rep(0, 116-x), viudez = 0, orph = 0)
+  qix <- all_qix(x, sexo, año)
+  pix <- 1 - qix
+  
+  
+  sim <- data.frame(act = rep(0, 116-x), inv = 0, pen = 0, surv = 0, viudez = 0, orph = 0)
   sim[1,1] <- 1
+  sim[1,3] <- 1
   # Si aplica al hijo, o si no ha nacido
   cond_hij <- x-25 < 25 & x-25 >=0
   if(cond_hij){
       o_px <- 1 - 0.5*(all_qx(x-25, 1, año) + all_qx(x-25, 2, año))
   }
+  if(sexo == 1){
+    cond_pen <- n_cot >= 300 & x:115 >= 65
+  } else {
+    cond_pen <- n_cot >= 300 & x:115 >= 65
+    if(x <= 64){
+      cond_pen[65-x] <- n_cot[65-x] >= 357
+    }
+    if(x <= 63){
+      cond_pen[64-x] <- n_cot[64-x] >= 405
+    }
+  }
+  cond_penp <- n_cot >= 180
+  
+  
   # Se realiza una tabla acumulativa
   for(i in 1:(115-x)){
-    sim[i+1,1] <- sim[i,1]*px[i]
-    sim[i+1,2] <- sim[i,2]*v_px[i]+sim[i,1]*qx[i]
+    sim[i+1,1] <- sim[i,1]*px[i]*pix[i]
+    sim[i+1,2] <- sim[i,1]*px[i]*qix[i]
+    sim[i+1,4] <- sim[i+1,1] + sim[i+1,2]
+    # Sucesión
+    sim[i+1,5] <- sim[i,5]*v_px[i]+sim[i,4]*qx[i]
     if(cond_hij){
       if(x-25+i > 25){
         cond_hij <- F
       } else {
-        sim[i+1,3] <- sim[i,3]*o_px[i] + sim[i,1]*qx[i]
+        sim[i+1,6] <- sim[i,6]*o_px[i] + sim[i,4]*qx[i]
       }
     }
+    
+    
   }
   sim[,2] <- sim[,2]*c(0,porc_viu)
   sim[,3] <- sim[,3]*0.3
-  return(sim[,2:3])
+  return(sim)
 }
 ```
 
+```{r}
+debug(porc_pensiones)
+porc_pensiones(128)
+```
 
 
 

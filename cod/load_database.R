@@ -21,4 +21,4 @@ invalidez <- read_excel("data/Tabla_Invalidez.xlsx")
 invalidez <- invalidez %>% 
   pivot_longer(c(Hombres, Mujeres), names_to = "sexo", values_to = "qi") %>%
   mutate(sexo = ifelse(sexo == "Hombres", 1, 2))
-
+invalidez <- data.frame(invalidez)
