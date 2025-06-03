@@ -411,55 +411,30 @@ cuotas <- data.frame( # Se hacen 60 años para tener 16 decimales de exactitud,
 names(cuotas) <- 0:60 + 2024
 ```
 
-```{r}
-porc_sucesion <- function(x, sexo, año){
-  # se toma el cálculo de la pensión y se calculan, según la edad, las distribuciones de los porcentajes
-  sex_con <- 3 - sexo
-  if(x < 50){
-    porc_viu <- c(rep(50, 50-x), rep(60, 10), rep(70, 115-60))
-  } else if(x < 60){
-    porc_viu <- c(rep(60, 60-x), rep(70, 115-60))
-  } else {
-    porc_viu <- c(rep(70, 115-x))
-  }
-  corte_viu <- porc_viu*all_tpx(x, sex_con, año)
-  # Vida hijo < 25
-  if(x-25<25){
-    porc_hij <- rep(30, x-25)
-  }
-  # Vida muerte conyuge
-  muerte_con <- all_deaths(x, sex_con, año)
-  vida_hijo <- (all_tpx(x, 1, 2025) + all_tpx(x, 2, 2025))/2
-  corte_huerf <- vida_con*30*vida_hijo
-    
-  
-}
-```
-
 
 ```{r}
 find_qx <- function(x, sexo, año){
   return(SUPEN[which(SUPEN$sex == sexo & SUPEN$year == año & SUPEN$edad == x),6])
 }
 
-find_life <- function(x, sexo, año){
+all_qx <- function(x, sexo, año){
   return(sapply(0:(115-x), function(y) find_qx(x+y, 1,año + y)))
 }
 
-all_tpx <- function(x, sexo, año){
-  qx <- find_life(x, sex_con, año)
-  return(cumprod(1 - qx[-length(qx)]))
-}
-
-all_deaths <- function(x, sexo, año){
-  qx <- find_life(x, sex_con, año)
-  tpx <- cumprod(c(1, 1 - qx[-length(qx)]))
-  return(tpx*qx)
-}
+# all_tpx <- function(x, sexo, año){
+#   qx <- find_life(x, sexo, año)
+#   return(cumprod(1 - qx[-length(qx)]))
+# }
+# 
+# all_deaths <- function(x, sexo, año){
+#   qx <- find_life(x, sexo, año)
+#   tpx <- cumprod(c(1, 1 - qx[-length(qx)]))
+#   return(tpx*qx)
+# }
 ```
 
 ```{r}
-find_qi <- function(x, sexo, año){
+find_qix <- function(x, sexo, año){
   return(invalidez[invalidez$Edad == x & invalidez$sexo == sexo, 3])
 }
 
@@ -467,7 +442,62 @@ find_inv <- function(x, sexo, año){
   return(sapply(0:(115-x), function(y) find_qi(x+y, 1,año + y)))
 }
 
+all_tpix <- function(x, sexo, año){
+  qix <- find_inv(x, sexo, año)
+  return(cumprod(1 - qix[-length(qix)]))
+}
+
+all_inv <- function(x, sexo, año){
+  qix <- find_inv(x, sexo, año)
+  tpix <- cumprod(c(1, 1 - qix[-length(qix)]))
+  return(tpix*qix)
+}
+
 ```
+
+
+```{r}
+porc_sucesion <- function(x, sexo, año){
+  # Porcentajes conyuge
+  sex_con <- 3 - sexo
+    if(x < 50){
+    porc_viu <- c(rep(0.5, 50-x), rep(0.6, 10), rep(0.7, 115-60))
+  } else if(x < 60){
+    porc_viu <- c(rep(0.6, 60-x), rep(0.7, 115-60))
+  } else {
+    porc_viu <- c(rep(0.7, 115-x))
+  }
+  
+  años <- 0:(115-x)
+  qx <- all_qx(x, sexo, año)
+  px <- 1 - qx
+  v_px <- 1 - all_qx(x, sex_con, año)
+  tqx <- all_deaths(x, sexo, año)
+  sim <- data.frame(pen = rep(0, 116-x), viudez = 0, orph = 0)
+  sim[1,1] <- 1
+  # Si aplica al hijo, o si no ha nacido
+  cond_hij <- x-25 < 25 & x-25 >=0
+  if(cond_hij){
+      o_px <- 1 - 0.5*(all_qx(x-25, 1, año) + all_qx(x-25, 2, año))
+  }
+  # Se realiza una tabla acumulativa
+  for(i in 1:(115-x)){
+    sim[i+1,1] <- sim[i,1]*px[i]
+    sim[i+1,2] <- sim[i,2]*v_px[i]+sim[i,1]*qx[i]
+    if(cond_hij){
+      if(x-25+i > 25){
+        cond_hij <- F
+      } else {
+        sim[i+1,3] <- sim[i,3]*o_px[i] + sim[i,1]*qx[i]
+      }
+    }
+  }
+  sim[,2] <- sim[,2]*c(0,porc_viu)
+  sim[,3] <- sim[,3]*0.3
+  return(sim[,2:3])
+}
+```
+
 
 
 
