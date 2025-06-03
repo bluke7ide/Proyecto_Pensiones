@@ -407,7 +407,7 @@ cotizantes <- cbind(cotizantes, cot_prop())
 ```{r}
 cuotas <- data.frame( # Se hacen 60 años para tener 16 decimales de exactitud, 
   # minimo es 21 + 60 - 65 = 16 años después de la edad requerida
-  sapply(0:60, function(x) cotizantes$densidades*x + cotizantes$cuotas))
+  sapply(0:60, function(x) cotizantes$densidades*x*12 + cotizantes$cuotas))
 names(cuotas) <- 0:60 + 2024
 ```
 
@@ -458,11 +458,19 @@ all_qix <- function(x, sexo, año){
 
 ```{r}
 año <- 2025
+cot_min_inv <- function(x) 12 + min(max(x-24, 0), 18)*4 + min(max(0, x-42), 6)*6
+
+sapply(0:115, cot_min_inv)
+```
+
+
+```{r}
 porc_pensiones <- function(id){
   x <- cotizantes$edad[id]
   sexo <- cotizantes$sexo[id]
   dens <- cotizantes$densidades[id]
-  n_cot <- unlist(cuotas[id,1:min(61,(115-x))])
+  rango <- 1:min(61,(115-x))
+  n_cot <- unlist(cuotas[id,rango])
   
   # Porcentajes conyuge
   sex_con <- 3 - sexo
@@ -491,9 +499,9 @@ porc_pensiones <- function(id){
       o_px <- 1 - 0.5*(all_qx(x-25, 1, año) + all_qx(x-25, 2, año))
   }
   if(sexo == 1){
-    cond_pen <- n_cot >= 300 & x:115 >= 65
+    cond_pen <- n_cot >= 300 & x+rango >= 65
   } else {
-    cond_pen <- n_cot >= 300 & x:115 >= 65
+    cond_pen <- n_cot >= 300 & x+rango >= 65
     if(x <= 64){
       cond_pen[65-x] <- n_cot[65-x] >= 357
     }
@@ -501,7 +509,9 @@ porc_pensiones <- function(id){
       cond_pen[64-x] <- n_cot[64-x] >= 405
     }
   }
-  cond_penp <- n_cot >= 180
+  cond_penp <- n_cot >= 180 & x+rango >= 65
+  
+  cond_inv <- n_cot >= 180 | (dens > 0.5 &  1)
   
   
   # Se realiza una tabla acumulativa
