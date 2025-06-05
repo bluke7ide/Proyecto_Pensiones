@@ -469,21 +469,29 @@ source("cod/porc_pensiones.R")
 ```
 
 ```{r}
-persona <- porc_pensiones(1280)
-# View(persona)
+t <- proc.time()
+persona <- sapply(1:5196, function(x) porc_pensiones(x))
+proc.time() - t
 ```
 
-
+```{r}
+curv_sal <- rep(1, 20:115)
+```
 
 
 ```{r}
 prueba <- function(int, inf){
-  int_ef <- ((1+int)/(1+inf))^(-1/12) 
+  int_ef <- ((1+int)/(1+inf))^(1/12) 
+  anual <- (1 - int_ef^-12)/(int_ef-1)
+  SEM <- cotizantes$sal_prom*anual*0.0085
+  pen_anual <- cotizantes$sal_prom*(anual + int_ef^(-11/12)) 
+  return(pen_anual)
   years <- 0:95 + 2024
-  cot_hombres <- cotizantes[cotizantes$sexo == 1, ] %>% select(-2)
-  cot_mujeres <- cotizantes[cotizantes$sexo == 2, ] %>% select(-2)
-  pen_hombres <- pensionados[pensionados$sexo == 1, ] %>% select(-2)
-  pen_mujeres <- pensionados[pensionados$sexo == 2, ] %>% select(-2)
+  # cot_hombres <- cotizantes[cotizantes$sexo == 1, ] %>% select(-2)
+  # cot_mujeres <- cotizantes[cotizantes$sexo == 2, ] %>% select(-2)
+  # pen_hombres <- pensionados[pensionados$sexo == 1, ] %>% select(-2)
+  # pen_mujeres <- pensionados[pensionados$sexo == 2, ] %>% select(-2)
+  
   
 }
 ```
