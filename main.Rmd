@@ -439,7 +439,7 @@ porcentaje_viudez <- function(x){
   } else {
     porc_viu <- c(rep(0.7, 115-x))
   }
-  return(c(0,porc_viu, rep(0, x-21)))
+  return(c(0,porc_viu, rep(0, x-20)))
 }
 ```
 
@@ -506,7 +506,7 @@ prueba <- function(int, inf){
   anual <- (1 - int_ef^-12)/(int_ef-1)
   # SEM <- cotizantes$sal_prom*anual*0.0085
   # pen_anual <- cotizantes$sal_prom*(anual + int_ef^(-11/12)) 
-  years <- 0:94
+  years <- 0:95
 
   # Doble iteración para recorrer toda la data, individuos y años
   for(id in 1:5196){
@@ -518,24 +518,24 @@ prueba <- function(int, inf){
     
     # sal_pen <- sal_pen(x, cuota_ini, dens, sal_prom, cotizaciones[id,])
     first_pen <- T
-    per <- data.frame(act = rep(0, 95), inv = 0, pen = 0, viu = 0, orp = 0)
+    per <- data.frame(act = rep(0, 96), inv = 0, pen = 0, viu = 0, orp = 0)
     porc_viu <- porcentaje_viudez(x)
     per$act[1] <- 1
+    
     for(j in years){
       if(x + j > 115){ # ya no puede vivir
         break
       }
       # Preliminares 
-      qx <- all_qx[[sexo]][x+j,j+1]
+      qx <- all_qx[[sexo]][x+j+1,j+1]
       px <- 1-qx
-      v_px <- all_qx[[3-sexo]][x+j,j+1]
+      v_px <- all_qx[[3-sexo]][x+j+1,j+1]
       qix <- all_qix[[sexo]][x+j-19]
       pix <- 1 - qix
       cot_min <- cotizacion_minima(x+j, sexo)
       n_cot <- cuota_ini + j*dens
       ncot180 <- n_cot >= 180
       per$act[j+2] <- per$act[j+1]*px*pix
- 
       # Invalidez
       if(ncot180 | (dens >= 0.5 & cot_min_inv(x+j))){
         per$inv[j+2] <- per$act[j+1]*qix + per$inv[j+1]*px 
