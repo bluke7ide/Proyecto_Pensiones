@@ -433,22 +433,41 @@ sapply(0:115, cot_min_inv)
 ```{r}
 porcentaje_viudez <- function(x){
   if(x < 50){
-    porc_viu <- 50
+    porc_viu <- c(rep(0.5, 50-x), rep(0.6, 10), rep(0.7, 115-60))
   } else if(x < 60){
-    porc_viu <- 60
+    porc_viu <- c(rep(0.6, 60-x), rep(0.7, 115-60))
   } else {
-    porc_viu <- 70
+    porc_viu <- c(rep(0.7, 115-x))
   }
   return(porc_viu)
 }
 ```
 
 ```{r}
+cotizacion_minima <- function(x, sexo){
+  cot_min <- 300
+  edad_min <- 65
+  if(sexo == 2){
+    if(x == 64){
+      edad_min <- 64
+      cot_min <- 357
+    }
+    if(x == 63){
+      cot_min <- 405
+      edad_min <- 63
+    }
+  }
+  return(c(cot_min, edad_min))
+}
+```
+
+
+```{r}
 source("cod/porc_pensiones.R")
 ```
 
 ```{r}
-curv_sal <- rep(1, 20:115)
+# curv_sal <- rep(1, 20:115)
 ```
 
 
@@ -466,36 +485,38 @@ prueba <- function(int, inf){
     sexo <- cotizantes$sexo[id]
     dens <- cotizantes$densidades[id]
     cuota_ini <- cotizantes$cuotas[id]
-    
     first_pen <- T
-    
+    per <- data.frame(act = rep(0, 95), inv = 0, pen = 0, viu = 0, orp = 0)
+    porc_viu <- porcentaje_viudez(x)
+    per$act[1] <- 1
     for(j in years){
-      if(x + j > 115){
+      if(x + j > 115){ # ya no puede vivir
         break
       }
-      qx <- all_qx[[sexo]][x,j+1]
+      # Preliminares 
+      qx <- all_qx[[sexo]][x,j]
       px <- 1-qx
-      v_px <- all_qx[[3-sexo]][x,j+1]
+      v_px <- all_qx[[3-sexo]][x,j]
       qix <- all_qix[[sexo]][x-19]
       pix <- 1 - qix
-      porc_viu <- porcentaje_viudez(x+j)
+      cot_min <- cotizacion_minima(x+j, sexo)
       n_cot <- cuota_ini + j*dens
-      
-      cot_min <- 300
-      edad_min <- 65
-      if(sexo == 2){
-        if(x+j == 64){
-          edad_min <- 64
-          cot_min <- 357
-        }
-        if(x+j == 63){
-          cot_min <- 405
-          edad_min <- 63
-        }
-      }
       ncot180 <- n_cot >= 180
-      # condicion para pensionarse
-      if(n_cot >= cot_min & x+j >= edad_min){
+      
+      per$act[j+2] <- per$act[j+1]*px*pix
+ 
+      # Invalidez
+      if(ncot180 | (dens >= 0.5 & cot_min_inv(x+j))){
+        per$inv[j+2] <- per$act[j+1]*qix + per$inv[j+1]*px # 3
+      } else if(n_cot>=60 & dens >= 0.5){
+        porc_invp <- n_cot/180
+        per$inv[j+2] <- per$act[j+1]*qix*porc_invp + per$inv[j+1]*px # 3
+      } else {
+        per$inv[j+2] <- per$inv[j+1]*px
+      }      
+           
+      # Vejez
+      if(n_cot >= cot_min[1] & x+j >= cot_min[2]){
         if(first_pen){
           first_pen <- F
           ini_cot <- n_cot
@@ -503,31 +524,35 @@ prueba <- function(int, inf){
         }
         cot_post <- max(0, n_cot - ini_cot)*2/1500
         porc_pen <- min(1.25, 1+cot_ad +cot_post)
+        per$act[j+2] <- per$act[j+2]*0.1
+        per$pen[j+2] <- per$act[j+1]*0.9*porc_pen + per$pen[j+1]*px # 3
         
       } else if(ncot180 & x+j >= 65) {
         porc_penp <- n_cot/300
-        # puede seguir trabajando pero se cuenta como postergar
+        per$act[j+2] <- per$act[j+2]*0.1 # puede seguir trabajando 
+        per$pen[j+2] <- per$act[j+1]*0.9*porc_penp + per$pen[j+1]*px # 3
+      } else {
+        per$pen[j+2] <- per$pen[j+1]*px
       }
       
-      # condición de invalidez
-      if(ncot180 | (dens >= 0.5 & cot_min_inv(x+j))){
-        
-      } else if(n_cot>=60 & dens >= 0.5){
-        porc_invp <- n_cot/180
-      }
-      
-      # condición de traspaso
-      if(ncot180 | dens >= 0.5){
-        
-      }
-      
-      # condición hijo
+      # Sucesión
       cond_hij <- x+j-25 < 25 & x+j-25 >=0 # esta última para ver si nació
+      ind_suc <- 2
+      if(ncot180 | dens >= 0.5){
+        ind_suc <- 1
+      } 
+      per$viu[j+2] <- per$viu[j+1]*v_px + per[j+1, ind_suc:3]*qx # 1
       if(cond_hij){
-        o_px <- 1 - 0.5*(all_qx[[1]][x-25,j+1] + all_qx[[2]][x-25,j+1])
+        o_px <- 1 - 0.5*(all_qx[[1]][x-25,j] + all_qx[[2]][x-25,j])
+        per$orp[j+2] <- per$orp[j+1]*o_px + per[j+1, ind_suc:3]*qx # 2
       }
-      
     }
+    
+    # Faltan:
+    # 1. porcentajes esposa
+    # 2. porcentajes hijo
+    # 3. Monto de pensión
+    
   }
   
 }
