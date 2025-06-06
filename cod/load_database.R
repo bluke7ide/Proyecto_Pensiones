@@ -18,7 +18,4 @@ SUPEN <- as.data.frame(lapply(SUPEN, as.numeric), stringsAsFactors = FALSE)
 IPC <- read_excel("data/ipc_inec.xlsx", skip = 3)
 
 invalidez <- read_excel("data/Tabla_Invalidez.xlsx")
-invalidez <- invalidez %>% 
-  pivot_longer(c(Hombres, Mujeres), names_to = "sexo", values_to = "qi") %>%
-  mutate(sexo = ifelse(sexo == "Hombres", 1, 2))
-invalidez <- data.frame(invalidez)
+all_qix <- list(invalidez$Hombres, invalidez$Mujeres)

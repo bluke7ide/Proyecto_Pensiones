@@ -34,15 +34,9 @@ porc_pensiones <- function(id){
   if(sexo == 2){
     if(x <= 64){
       cond_pen[65-x] <- n_cot[65-x] >= 357
-      if(cond_pen[65-x]){
-        #?
-      }
     }
     if(x <= 63){
       cond_pen[64-x] <- n_cot[64-x] >= 405
-      if(cond_pen[65-x]){
-        #?
-      }
     }
   }
   
