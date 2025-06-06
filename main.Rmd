@@ -439,7 +439,7 @@ porcentaje_viudez <- function(x){
   } else {
     porc_viu <- c(rep(0.7, 115-x))
   }
-  return(c(0,porc_viu, rep(0, x-19)))
+  return(c(0,porc_viu, rep(0, x-21)))
 }
 ```
 
@@ -516,7 +516,7 @@ prueba <- function(int, inf){
     cuota_ini <- cotizantes$cuotas[id]
     sal_prom <- cotizantes$sal_prom[id]
     
-    sal_pen <- sal_pen(x, cuota_ini, dens, sal_prom, cotizaciones[id,])
+    # sal_pen <- sal_pen(x, cuota_ini, dens, sal_prom, cotizaciones[id,])
     first_pen <- T
     per <- data.frame(act = rep(0, 95), inv = 0, pen = 0, viu = 0, orp = 0)
     porc_viu <- porcentaje_viudez(x)
@@ -572,11 +572,10 @@ prueba <- function(int, inf){
       if(ncot180 | dens >= 0.5){
         ind_suc <- 1
       } 
-      browser()
-      per$viu[j+2] <- per$viu[j+1]*v_px + per[j+1, ind_suc:3]*qx 
+      per$viu[j+2] <- per$viu[j+1]*v_px + sum(per[j+1, ind_suc:3])*qx 
       if(cond_hij){
-        o_px <- 1 - 0.5*(all_qx[[1]][x-25+j,j+1] + all_qx[[2]][x-25+j,j+1])
-        per$orp[j+2] <- per$orp[j+1]*o_px + per[j+1, ind_suc:3]*qx 
+        o_px <- 1 - 0.5*(all_qx[[1]][x-24+j,j+1] + all_qx[[2]][x-24+j,j+1])
+        per$orp[j+2] <- per$orp[j+1]*o_px + sum(per[j+1, ind_suc:3])*qx 
       }
     }
     per$viu <- per$viu*porc_viu
