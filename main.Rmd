@@ -479,13 +479,10 @@ sal_pen <- function(x, cuota, dens, sal_prom, cuotas_past){
   sal_pen <- rep(0, 115-x)
   sal_pen[1] <- salarios[1]
   cuotas <- unlist(cuotas_past*niveles)
+  cuotas <- cuotas[cuotas>10000]
   for(i in 1:(114-x)){
     cuotas <- c(cuotas, rep(salarios[i+1], cantidades[i]))
-    cot_pen <- cuotas < 5e6
-    true_counts <- sum(1 - cot_pen)/enteros[i+1] > 0.5  
-    cot_pen[true_counts] <- TRUE
-    calc_pen <- cuotas[cot_pen & cuotas > 10000]
-
+    calc_pen <- cuotas[sum(1 - cuotas < 5e6)/enteros[i+1] > 0.5 | cuotas < 5e6]
     sal_pen[i+1] <- mean(head(sort(calc_pen, decreasing = T), 300))
   }
   return(c(sal_pen, rep(0, x-20)))
@@ -494,7 +491,15 @@ sal_pen <- function(x, cuota, dens, sal_prom, cuotas_past){
 
 ```{r}
 t <- proc.time()
-sal_pen(67, 290, 0.86, 390000, cotizaciones[1,])
+# pensionados <- list() 
+for(id in 1:5196){
+  pensionados[[id]] <- sal_pen(cotizantes$edad[id],
+                               cotizantes$cuotas[id],
+                               cotizantes$densidades[id],
+                               cotizantes$sal_prom[id],
+                               cotizaciones[id,])
+}
+
 proc.time() - t
 ```
 
@@ -504,22 +509,27 @@ proc.time() - t
 prueba <- function(int, inf){
   int_ef <- ((1+int)/(1+inf))^(1/12) 
   anual <- (1 - int_ef^-12)/(int_ef-1)
-  # SEM <- cotizantes$sal_prom*anual*0.0085
-  # pen_anual <- cotizantes$sal_prom*(anual + int_ef^(-11/12)) 
   years <- 0:95
+  Inv <- 0
+  Pen <- 0
+  Suc <- 0
 
   # Doble iteración para recorrer toda la data, individuos y años
   for(id in 1:5196){
+    # Preliminares del individuo
     x <- cotizantes$edad[id]
     sexo <- cotizantes$sexo[id]
     dens <- cotizantes$densidades[id]
     cuota_ini <- cotizantes$cuotas[id]
-    sal_prom <- cotizantes$sal_prom[id]
+    porc_viu <- porcentaje_viudez(x)
+    sal_pen <- pensionados[[id]]
+    vp_pen <- sal_pen*(anual + int_ef^(-11/12))
+    vp_sem <- sal_pen*anual
     
-    # sal_pen <- sal_pen(x, cuota_ini, dens, sal_prom, cotizaciones[id,])
+    
+    # Inicialización del dataframe del individuo
     first_pen <- T
     per <- data.frame(act = rep(0, 96), inv = 0, pen = 0, viu = 0, orp = 0)
-    porc_viu <- porcentaje_viudez(x)
     per$act[1] <- 1
     
     for(j in years){
@@ -536,14 +546,15 @@ prueba <- function(int, inf){
       n_cot <- cuota_ini + j*dens
       ncot180 <- n_cot >= 180
       per$act[j+2] <- per$act[j+1]*px*pix
+      
       # Invalidez
       if(ncot180 | (dens >= 0.5 & cot_min_inv(x+j))){
         per$inv[j+2] <- per$act[j+1]*qix + per$inv[j+1]*px 
       } else if(n_cot>=60 & dens >= 0.5){
         porc_invp <- n_cot/180
-        per$inv[j+2] <- per$act[j+1]*qix*porc_invp + per$inv[j+1]*px 
+        per$inv[j+2] <- per$act[j+1]*qix*porc_invp*vp_pen[j+1] + per$inv[j+1]*px*int_ef^-12
       } else {
-        per$inv[j+2] <- per$inv[j+1]*px
+        per$inv[j+2] <- per$inv[j+1]*px*int_ef^-12
       }      
            
       # Vejez
@@ -556,14 +567,14 @@ prueba <- function(int, inf){
         cot_post <- max(0, n_cot - ini_cot)*2/1500
         porc_pen <- min(1.25, 1+cot_ad +cot_post)
         per$act[j+2] <- per$act[j+2]*0.1
-        per$pen[j+2] <- per$act[j+1]*0.9*porc_pen + per$pen[j+1]*px 
+        per$pen[j+2] <- per$act[j+1]*0.9*porc_pen*vp_pen[j+1] + per$pen[j+1]*px*int_ef^-12
         
       } else if(ncot180 & x+j >= 65) {
         porc_penp <- n_cot/300
         per$act[j+2] <- per$act[j+2]*0.1 # puede seguir trabajando 
-        per$pen[j+2] <- per$act[j+1]*0.9*porc_penp + per$pen[j+1]*px 
+        per$pen[j+2] <- per$act[j+1]*0.9*porc_penp*vp_pen[j+1] + per$pen[j+1]*px*int_ef^-12
       } else {
-        per$pen[j+2] <- per$pen[j+1]*px
+        per$pen[j+2] <- per$pen[j+1]*px*int_ef^-12
       }
       
       # Sucesión
@@ -572,18 +583,17 @@ prueba <- function(int, inf){
       if(ncot180 | dens >= 0.5){
         ind_suc <- 1
       } 
-      per$viu[j+2] <- per$viu[j+1]*v_px + sum(per[j+1, ind_suc:3])*qx 
+      per$viu[j+2] <- per$viu[j+1]*v_px*int_ef^-12 + sum(per[j+1, ind_suc:3])*qx*vp_pen[j+1] 
       if(cond_hij){
         o_px <- 1 - 0.5*(all_qx[[1]][x-24+j,j+1] + all_qx[[2]][x-24+j,j+1])
-        per$orp[j+2] <- per$orp[j+1]*o_px + sum(per[j+1, ind_suc:3])*qx 
+        per$orp[j+2] <- per$orp[j+1]*o_px*int_ef^-12 + sum(per[j+1, ind_suc:3])*qx*vp_pen[j+1] 
       }
     }
     per$viu <- per$viu*porc_viu
     per$orp <- per$orp*0.3
-    
-    # Faltan:
-    # Monto de pensión. Realizar producto matricial.
-    
+    Inv <- Inv + sum(per$inv)
+    Pen <- Pen + sum(per$pen)
+    Suc <- Suc + sum(per$orp) + sum(per$viu)
   }
   
 }
