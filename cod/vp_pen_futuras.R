@@ -95,7 +95,7 @@ vp_pen_futuras <- function(int, inf){
 
 sal_pen <- function(x, cuota, dens, sal_prom, cuotas_past){
   n_cot <- sapply(0:(115-x), function(y) cuota + y*dens*12)
-  salarios <- curv_sal*sal_prom
+  salarios <- cumprod(curv_sal[(x-19):81])*sal_prom
   enteros <- round(n_cot - n_cot[1])
   cantidades <- enteros[-1] - enteros[-length(enteros)]
   sal_pen <- rep(0, 115-x)
