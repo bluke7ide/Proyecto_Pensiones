@@ -5,31 +5,44 @@ colnames(BD_Cotizantes)[4:ncol(BD_Cotizantes)] <- as.character(
   as.Date(as.numeric(colnames(BD_Cotizantes)[4:ncol(BD_Cotizantes)]),
           origin = "1899-12-30"))
 
-fecha_cols <- names(BD_Cotizantes)[!(names(BD_Cotizantes) %in% c("ID", "Fec.Nac", "Sexo"))]
-
-base_long <- BD_Cotizantes %>%
-  pivot_longer(cols = all_of(fecha_cols),
+# ---------------------------------
+curva_salarial <- BD_Cotizantes %>%
+  select(-c(ID, Sexo)) %>%
+  pivot_longer(cols = c(-Fec.Nac),
                names_to = "Fecha",
                values_to = "Salario") %>%
+  filter(Salario > 0) %>%
   mutate(
-    Fecha = as.Date(Fecha),
-    Fec.Nac = as.Date(Fec.Nac),
-    Edad = floor(as.numeric(difftime(Fecha, Fec.Nac, units = "days")) / 365.25),
-    Tiempo = 2024-year(Fecha),
-    Salario_ajustado = Salario *(1+0.03)^Tiempo
-  ) %>% 
-  filter(Salario > 0)
-
-curva <- base_long %>%
+    Fecha = ymd(Fecha),
+    Fec.Nac = ymd(Fec.Nac),
+    Edad = floor(as.numeric(difftime(
+      Fecha, Fec.Nac, units = "days"
+    )) / 365.25),
+    Fecha_num = match(Fecha, sort(unique(Fecha))),
+    Factor_ajuste = 110.39017 / IPC$Nivel[228 + Fecha_num],
+    Salario_ajustado = Salario * Factor_ajuste
+  ) %>%
   group_by(Edad) %>%
-  summarise(SalarioPromedio = mean(Salario_ajustado), .groups = "drop")
+  summarise(Salario_promedio = mean(Salario_ajustado)) %>%
+  ungroup() %>%
+  mutate(
+    Salario_promedio = ifelse(Edad > 70,
+                              Salario_promedio[Edad == 70],
+                              Salario_promedio)
+    ) %>% 
+  complete(Edad = 20:100) %>% 
+  mutate(
+    Salario_promedio = ifelse(is.na(Salario_promedio), 
+                              Salario_promedio[Edad == 70], 
+                              Salario_promedio),
+    s_x = lead(Salario_promedio) / Salario_promedio,
+    s_x = ifelse(is.na(s_x), 1, s_x)
+  )
 
-ggplot(curva, aes(x = Edad, y = SalarioPromedio)) +
-  geom_line(size = 1) +
-  labs(
-    title = "Curva salarial promedio por edad y sexo",
-    x = "Edad",
-    y = "Salario promedio nominal",
-  ) +
-   theme_minimal() 
-
+ggplot(curva_salarial, aes(x = Edad, y = cumprod(s_x))) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(method = "gam",
+              formula = y ~ s(x, bs = "cs"),
+              se = FALSE,
+              color = "steelblue") +
+  theme_minimal()
