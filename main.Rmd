@@ -418,9 +418,15 @@ find_qix <- function(x, sexo, año){
 
 ```{r}
 año <- 2025
+t <- proc.time()
 all_qx <- list(
   sapply(0:95, function(y) sapply(0:115, function(x) find_qx(x, 1, año+y))),
   sapply(0:95, function(y) sapply(0:115, function(x) find_qx(x, 2, año+y))))
+proc.time() - t
+```
+
+```{r, message=FALSE}
+source("cod/curva_salarial.R")
 ```
 
 ```{r}
@@ -433,7 +439,7 @@ sapply(0:115, cot_min_inv)
 ```
 
 ```{r}
-curv_sal <- 1.01^(0:95)
+curv_sal <- curva_salarial$s_x
 ```
 
 ```{r}
@@ -451,9 +457,7 @@ proc.time() - t
 
 ```{r}
 t <- proc.time()
-
 (datos <- vp_pen_futuras(0.05, 0.02)/1e9)
-
 proc.time() - t
 ```
 
@@ -465,6 +469,9 @@ vp_cot_past <- function(){
 }
 ```
 
+```{r}
+
+```
 
 
 
