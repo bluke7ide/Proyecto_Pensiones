@@ -352,71 +352,35 @@ niveles <- 110.39017/IPC$Nivel[229:588]
 
 
 
-```{r}
-rm(BD_Cotizantes,
-   BD_Pensionados,
-   BD_Financiero,
-   ultimo_año,
-   poblacion, 
-   IPC, 
-   cuentas
-   )
+
+
+## Funciones alternas
+```{r, message=FALSE}
+source("cod/curva_dens.R")
+source("cod/curva_salarial.R")
+source("cod/vp_pen_futuras.R")
 ```
 
-## Propiedades de cotización
+### Curva salarial
 ```{r}
-cot_prop <- function(){
-  # Tomando el valor presente
-  vp_cot <- sapply(1:ncol(cotizaciones), function(x) t(cotizaciones[,x]) * niveles[[x]])
-  
-  # Salarios más de 10 mil cuentan como cotizaciones
-  data <- vp_cot > 10000
-  does_cot <- sapply(1:nrow(data), function(x) which(data[x,]))
-  inicios <- sapply(1:nrow(data), function(x) first(does_cot[[x]]))
-  
-  # Cantidad de cuotas
-  cuotas <- rowSums(data)
-  
-  # Densidades de cotización
-  dens_cot <- sapply(1:nrow(data), function(x) 
-    mean(data[x,inicios[x]:ncol(data)]))
-  
-  # Promedio de los 300 mejores salarios
-  cot_pen <- vp_cot < 5e6
-  
-    # a menos de que históricamente haya cotizado 5m, se veta
-  true_counts <- rowSums(1 - cot_pen)/cuotas > 0.5 # al menos más de la mitad 
-  cot_pen[true_counts,] <- TRUE
-  
-    # Se fusionan las condiciones
-  cot_pen <- cot_pen & data
-  calc_pen <- sapply(1:nrow(data), function(x) vp_cot[x, cot_pen[x,]])
-  
-    # Cálculo explícito
-  Sx <- sapply(1:nrow(data), function(x) 
-    mean(head(sort(calc_pen[[x]], decreasing = T), 300)))
-  
-  return(data.frame(densidades = dens_cot, sal_prom = Sx, cuotas = cuotas))
-}
+curv_sal <- curva_salarial$s_x
 ```
 
+### Propiedades de cotizaciones
 ```{r}
 cotizantes <- cbind(cotizantes, cot_prop())
 ```
 
-## Localización probabilidades
+### Curva de densidades de cotizacion
+```{r}
+curv_dens <- curva_dens()$media
+```
+
+### Obtención de matrices de probabilidad de muerte
 ```{r}
 find_qx <- function(x, sexo, año){
   return(SUPEN[which(SUPEN$sex == sexo & SUPEN$year == año & SUPEN$edad == x),6])
 }
-
-find_qix <- function(x, sexo, año){
-  return(invalidez[invalidez$Edad == x & invalidez$sexo == sexo, 3])
-}
-
-```
-
-```{r}
 año <- 2025
 t <- proc.time()
 all_qx <- list(
@@ -425,35 +389,37 @@ all_qx <- list(
 proc.time() - t
 ```
 
-```{r, message=FALSE}
-source("cod/curva_salarial.R")
-```
-
-```{r}
-source("cod/vp_pen_futuras.R")
-```
-
-## Cotizaciones mínimas de invalidez
-```{r}
-sapply(0:115, cot_min_inv)
-```
-
-```{r}
-curv_sal <- curva_salarial$s_x
-```
-
+### Precálculo de las pensiones
 ```{r}
 t <- proc.time()
 pensiones <- list()
 for(id in 1:5196){
   pensiones[[id]] <- sal_pen(cotizantes$edad[id],
                              cotizantes$cuotas[id],
-                             cotizantes$densidades[id],
                              cotizantes$sal_prom[id],
                              cotizaciones[id,])
 }
 proc.time() - t
 ```
+
+```{r}
+rm(BD_Cotizantes,
+   BD_Pensionados,
+   BD_Financiero,
+   ultimo_año,
+   poblacion, 
+   IPC, 
+   cuentas, 
+   cot_prop,
+   curva_salarial,
+   curva_dens, 
+   SUPEN,
+   unicos, 
+   find_qx
+   )
+```
+
+
 
 ```{r}
 t <- proc.time()

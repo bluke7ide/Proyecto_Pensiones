@@ -11,7 +11,6 @@ vp_pen_futuras <- function(int, inf){
     # Preliminares del individuo
     x <- cotizantes$edad[id]
     sexo <- cotizantes$sexo[id]
-    dens <- cotizantes$densidades[id]
     cuota_ini <- cotizantes$cuotas[id]
     porc_viu <- porcentaje_viudez(x)
     sal_pen <- pensiones[[id]]
@@ -91,27 +90,6 @@ vp_pen_futuras <- function(int, inf){
   }
   SEM <- 0.085*anual*(Inv+Pen+Suc)/(anual + int_ef^(-11/12))
   return(t(data.frame(Inv,Pen,Suc,SEM)))
-}
-
-sal_pen <- function(x, cuota, dens, sal_prom, cuotas_past){
-  n_cot <- sapply(0:(115-x), function(y) cuota + y*dens*12)
-  salarios <- cumprod(curv_sal[(x-19):81])*sal_prom
-  enteros <- round(n_cot - n_cot[1])
-  cantidades <- enteros[-1] - enteros[-length(enteros)]
-  sal_pen <- rep(0, 115-x)
-  sal_pen[1] <- salarios[1]
-  cuotas <- unlist(cuotas_past*niveles)
-  cuotas <- cuotas[cuotas>10000]
-  for(i in 1:(114-x)){
-    cuotas <- c(cuotas, rep(salarios[i+1], cantidades[i]))
-    calc_pen <- cuotas[sum(1 - cuotas < 5e6)/enteros[i+1] > 0.5 | cuotas < 5e6]
-    sal_pen[i+1] <- mean(head(sort(calc_pen, decreasing = T), 300))
-  }
-  porc <- c(0.525,0.51, 0.494, 0.478, 0.462, 0.446, 0.43)
-  montos <- c(2,3,4,5,6,8) * 367108.55
-  indices <- findInterval(sal_pen, montos) + 1
-  sal_pen <- sal_pen * porc[indices]
-  return(c(sal_pen, rep(0, x-20)))
 }
 
 cotizacion_minima <- function(x, sexo){
