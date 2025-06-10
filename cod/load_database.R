@@ -19,8 +19,3 @@ IPC <- read_excel("data/ipc_inec.xlsx", skip = 3)
 
 invalidez <- read_excel("data/Tabla_Invalidez.xlsx")
 all_qix <- list(invalidez$Hombres, invalidez$Mujeres)
-
-TBP <- read_excel("data/TBP.xlsx")
-TBP$Mes <- 1:12
-TBP <- pivot_longer(TBP, cols = 2:31) %>% arrange(name)
-TBP <- (1+TBP$value/100)^(1/12)
