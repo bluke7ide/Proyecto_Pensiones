@@ -51,8 +51,8 @@ cot_prop <- function(){
 }
 
 sal_pen <- function(x, cuota, sal_prom, cuotas_past){
-  n_cot <- cumsum(curv_dens[(x-19):81])+cuota
-  salarios <- cumprod(curv_sal[(x-19):81])*sal_prom
+  n_cot <- c(0,cumsum(curv_dens[(x-19):96]))+cuota
+  salarios <- cumprod(curv_sal[(x-19):96])*sal_prom
   enteros <- round(n_cot - n_cot[1])
   cantidades <- enteros[-1] - enteros[-length(enteros)]
   sal_pen <- rep(0, 115-x)
@@ -67,6 +67,9 @@ sal_pen <- function(x, cuota, sal_prom, cuotas_past){
   porc <- c(0.525,0.51, 0.494, 0.478, 0.462, 0.446, 0.43)
   montos <- c(2,3,4,5,6,8) * 367108.55
   indices <- findInterval(sal_pen, montos) + 1
-  sal_pen <- sal_pen * porc[indices]
-  return(c(sal_pen, rep(0, x-20)))
+  sal_pen <- c(sal_pen * porc[indices], rep(0, x-20))
+  sal_pen[sal_pen>=2e6] <- sal_pen[sal_pen>=2e6] *0.95
+  cot_pen <- rep(0, length(sal_pen))
+  cot_pen[sal_pen>=2e6] <- cot_pen[sal_pen>=2e6] * 0.05  # NO SIRVE?
+  return(list(sal_pen, cot_pen))
 }

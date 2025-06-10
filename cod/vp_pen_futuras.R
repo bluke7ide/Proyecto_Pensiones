@@ -13,10 +13,8 @@ vp_pen_futuras <- function(int, inf){
     sexo <- cotizantes$sexo[id]
     cuota_ini <- cotizantes$cuotas[id]
     porc_viu <- porcentaje_viudez(x)
-    sal_pen <- pensiones[[id]]
+    sal_pen <- pensiones[[id]][[1]]
     vp_pen <- sal_pen*(anual + int_ef^(-11/12))
-    vp_sem <- sal_pen*anual*0.085
-    
     
     # Inicialización del dataframe del individuo
     first_pen <- T
@@ -34,6 +32,7 @@ vp_pen_futuras <- function(int, inf){
       qix <- all_qix[[sexo]][x+j-19]
       pix <- 1 - qix
       cot_min <- cotizacion_minima(x+j, sexo)
+      dens <- curv_dens[x+j-19]
       n_cot <- cuota_ini + j*dens
       ncot180 <- n_cot >= 180
       per$act[j+2] <- per$act[j+1]*px*pix

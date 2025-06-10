@@ -29,7 +29,7 @@ curva_salarial <- BD_Cotizantes %>%
                               Salario_promedio[Edad == 70],
                               Salario_promedio)
     ) %>% 
-  complete(Edad = 20:100) %>% 
+  complete(Edad = 20:115) %>% 
   mutate(
     Salario_promedio = ifelse(is.na(Salario_promedio), 
                               Salario_promedio[Edad == 70], 
