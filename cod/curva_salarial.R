@@ -1,4 +1,3 @@
-source("cod/setup.R")
 IPC <- read_excel("data/ipc_inec.xlsx", skip = 3)
 BD_Cotizantes <- read_excel("data/BD_Cotizantes.xlsx")
 colnames(BD_Cotizantes)[4:ncol(BD_Cotizantes)] <- as.character(
@@ -39,10 +38,10 @@ curva_salarial <- BD_Cotizantes %>%
     s_x = ifelse(is.na(s_x), 1, s_x)
   )
 
-ggplot(curva_salarial, aes(x = Edad, y = cumprod(s_x))) +
-  geom_point(alpha = 0.5) +
-  geom_smooth(method = "gam",
-              formula = y ~ s(x, bs = "cs"),
-              se = FALSE,
-              color = "steelblue") +
-  theme_minimal()
+# ggplot(curva_salarial, aes(x = Edad, y = cumprod(s_x))) +
+#   geom_point(alpha = 0.5) +
+#   geom_smooth(method = "gam",
+#               formula = y ~ s(x, bs = "cs"),
+#               se = FALSE,
+#               color = "steelblue") +
+#   theme_minimal()
