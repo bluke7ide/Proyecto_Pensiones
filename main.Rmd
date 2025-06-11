@@ -169,7 +169,6 @@ fig <- ggplot(cotizantes_activos, aes(x = factor(edad), fill = sexo)) +
 # ggsave("res/dist_activos.pdf", fig)
 ```
 
-
 ```{r}
 cotizantes <- cotizantes %>% 
   mutate(antiguedad = apply(BD_Cotizantes[, 4:ncol(BD_Cotizantes)], 1, function(x) which(x != 0)[1]))
@@ -187,7 +186,6 @@ fig <- ggplot(cotizantes, aes(x = antiguedad, fill = sexo)) +
 
 # ggsave("res/activos_ant.pdf", fig)
 ```
-
 
 ## Población pensionada
 ```{r}
@@ -350,10 +348,6 @@ pensionados <- pensionados %>% mutate(
 niveles <- 110.39017/IPC$Nivel[229:588]
 ```
 
-
-
-
-
 ## Funciones alternas
 ```{r, message=FALSE}
 source("cod/curva_dens.R")
@@ -364,6 +358,7 @@ source("cod/vp_pen_futuras.R")
 ### Curva salarial
 ```{r}
 curv_sal <- curva_salarial$s_x
+plot(cumprod(curv_sal))
 ```
 
 ### Propiedades de cotizaciones
@@ -374,6 +369,7 @@ cotizantes <- cbind(cotizantes, cot_prop())
 ### Curva de densidades de cotizacion
 ```{r}
 curv_dens <- curva_dens()$media
+plot(curv_dens)
 ```
 
 ### Obtención de matrices de probabilidad de muerte
@@ -402,6 +398,21 @@ for(id in 1:5196){
 proc.time() - t
 ```
 
+### Obtención del interés
+```{r}
+hoja <- BD_Financiero[[3]]
+int_mes <- sapply(1:120, function(x)  (hoja[x+1, 2] - hoja[x,2] - hoja[x,4] + hoja[x,5])/(hoja[x,2] + (hoja[x,4] - hoja[x,5])/2)+1)
+int_mes <- unlist(int_mes)
+int <- sapply(1:109, function(x) prod(int_mes[x:(11+x)])-1)
+inf_max <- IPC$Nivel[564]/IPC$Nivel[552] - 1
+plot(int)
+lines((0:109)*-0.0003859 + 0.177)
+```
+
+```{r}
+(int_real <- mean(int) - inf_max)
+```
+
 ```{r}
 rm(BD_Cotizantes,
    BD_Pensionados,
@@ -415,29 +426,26 @@ rm(BD_Cotizantes,
    curva_dens, 
    SUPEN,
    unicos, 
-   find_qx
+   find_qx, 
+   hoja,
+   int, 
+   inf_max, 
+   int_mes, 
+   sal_pen
    )
 ```
 
-
-
+# Balance Actuarial
+## Cálculo del VP de beneficios de pensiones futuras
 ```{r}
 t <- proc.time()
-(datos <- vp_pen_futuras(0.05, 0.02)/1e9)
+(datos <- vp_pen_futuras(int_real, 0.02)/1e9)
 proc.time() - t
 ```
 
-```{r}
-vp_cot_past <- function(){
-  int <- cumprod(c(1,TBP[-1]))[360:1] # mes vencido
-  vp <- int/niveles 
-  return(sum(as.matrix(cotizaciones) %*% vp)*0.15)
-}
-```
 
-```{r}
 
-```
+
 
 
 

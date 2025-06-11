@@ -37,7 +37,7 @@ curva_salarial <- BD_Cotizantes %>%
     s_x = lead(Salario_promedio) / Salario_promedio,
     s_x = ifelse(is.na(s_x), 1, s_x)
   )
-
+curva_salarial$s_x <- c(curva_salarial$s_x[1:40], smooth(curva_salarial$s_x[41:96]))
 # ggplot(curva_salarial, aes(x = Edad, y = cumprod(s_x))) +
 #   geom_point(alpha = 0.5) +
 #   geom_smooth(method = "gam",

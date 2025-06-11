@@ -70,6 +70,6 @@ sal_pen <- function(x, cuota, sal_prom, cuotas_past){
   sal_pen <- c(sal_pen * porc[indices], rep(0, x-20))
   sal_pen[sal_pen>=2e6] <- sal_pen[sal_pen>=2e6] *0.95
   cot_pen <- rep(0, length(sal_pen))
-  cot_pen[sal_pen>=2e6] <- cot_pen[sal_pen>=2e6] * 0.05  # NO SIRVE?
+  cot_pen[sal_pen>=2e6] <- sal_pen[sal_pen>=2e6]/0.95 * 0.05  
   return(list(sal_pen, cot_pen))
 }
