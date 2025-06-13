@@ -27,7 +27,6 @@ cot_prop <- function(){
   
   # Salarios más de 10 mil cuentan como cotizaciones
   data <- vp_cot > 10000
-  does_cot <- sapply(1:nrow(data), function(x) which(data[x,]))
   
   # Cantidad de cuotas
   cuotas <- rowSums(data)
@@ -68,8 +67,5 @@ sal_pen <- function(x, cuota, sal_prom, cuotas_past){
   montos <- c(2,3,4,5,6,8) * 367108.55
   indices <- findInterval(sal_pen, montos) + 1
   sal_pen <- c(sal_pen * porc[indices], rep(0, x-20))
-  sal_pen[sal_pen>=2e6] <- sal_pen[sal_pen>=2e6] *0.95
-  cot_pen <- rep(0, length(sal_pen))
-  cot_pen[sal_pen>=2e6] <- sal_pen[sal_pen>=2e6]/0.95 * 0.05  
-  return(list(sal_pen, cot_pen))
+  return(sal_pen)
 }
