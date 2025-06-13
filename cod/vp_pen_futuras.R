@@ -5,7 +5,8 @@ vp_pen_futuras <- function(int, inf){
   Inv <- 0
   Pen <- 0
   Suc <- 0
-  
+  limit2 <- 2e6*(int_ef^-12)^(years)
+  limit3.5 <- 3e6*(int_ef^-12)^(years)
   # Doble iteración para recorrer toda la data, individuos y años
   for(id in 1:5196){
     # Preliminares del individuo
@@ -15,6 +16,11 @@ vp_pen_futuras <- function(int, inf){
     porc_viu <- porcentaje_viudez(x)
     sal_pen <- pensiones[[id]][[1]]
     vp_pen <- sal_pen*(anual + int_ef^(-11/12))
+    ind_cot <- vp_pen > limit2[1:length(sal_pen)]
+    temp <- vp_pen[ind_cot]
+    vp_pen[ind_cot] <- temp*0.95
+    cot_pen <- rep(0, length(vp_pen))
+    cot_pen[ind_cot] <- temp*0.05
     
     # Inicialización del dataframe del individuo
     first_pen <- T
@@ -36,13 +42,17 @@ vp_pen_futuras <- function(int, inf){
       n_cot <- cuota_ini + j*dens
       ncot180 <- n_cot >= 180
       per$act[j+2] <- per$act[j+1]*px*pix
-      
+      if(vp_pen[j+1]>limit3.5[j+1]){
+        vp_pen[j+1] <- limit3.5[j+1]
+      }
+      per$cot[j+2] <- per$cot[j+1]*px*int_ef^-12
       # Invalidez
       if(ncot180 | (dens >= 0.5 & cot_min_inv(x+j))){
         per$inv[j+2] <- per$act[j+1]*qix*vp_pen[j+1] + per$inv[j+1]*px*int_ef^-12
       } else if(n_cot>=60 & dens >= 0.5){
         porc_invp <- n_cot/180
         per$inv[j+2] <- per$act[j+1]*qix*porc_invp*vp_pen[j+1] + per$inv[j+1]*px*int_ef^-12
+        per$cot[j+2] <- per$act[j+1]*qix*porc_invp*cot_pen[j+1] + per$cot[j+2]
       } else {
         per$inv[j+2] <- per$inv[j+1]*px*int_ef^-12
       }      
@@ -59,6 +69,7 @@ vp_pen_futuras <- function(int, inf){
         per$act[j+2] <- per$act[j+2]*0.1
         
         per$pen[j+2] <- per$act[j+1]*0.9*porc_pen*vp_pen[j+1] + per$pen[j+1]*px*int_ef^-12
+        per$cot[j+2] <- per$act[j+1]*0.9*porc_pen*cot_pen[j+1] + per$cot[j+2]
         
       } else if(ncot180 & x+j >= 65) {
         porc_penp <- n_cot/300

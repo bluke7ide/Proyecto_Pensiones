@@ -444,7 +444,8 @@ proc.time() - t
 ```
 
 
-
+# NOTA
+ HAcen falta los 2millones. Pasarlo con la tasa efectiva para cada tasa diferente y comparar salarios en el punto. 
 
 
 
