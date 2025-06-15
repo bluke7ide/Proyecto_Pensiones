@@ -14,7 +14,7 @@ vp_pen_futuras <- function(int, inf){
     sexo <- cotizantes$sexo[id]
     cuota_ini <- cotizantes$cuotas[id]
     porc_viu <- porcentaje_viudez(x)
-    sal_pen <- pensiones[[id]]
+    sal_pen <- c(pensiones[[id]], rep(0, x-19))
     vp_pen <- sal_pen/(1+int)^(0:(length(sal_pen)-1))
     ind_cot <- vp_pen > limit2[1:length(sal_pen)]
     vp_pen <- vp_pen*(anual + int_ef^(-11/12))
