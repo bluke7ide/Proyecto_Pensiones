@@ -66,6 +66,6 @@ sal_pen <- function(x, cuota, sal_prom, cuotas_past){
   porc <- c(0.525,0.51, 0.494, 0.478, 0.462, 0.446, 0.43)
   montos <- c(2,3,4,5,6,8) * 367108.55
   indices <- findInterval(sal_pen, montos) + 1
-  sal_pen <- c(sal_pen * porc[indices], rep(0, x-20))
+  sal_pen <- sal_pen * porc[indices]
   return(sal_pen)
 }

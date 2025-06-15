@@ -456,7 +456,7 @@ vqx <- sapply(0:95, function(x) all_qx[[2]][21+x, 1+x])
 ```
 
 ## Objetivo
-calcular las pensiones por anualidades financieras, en la función traerlas a vp
+calcular las pensiones por anualidades de mortalidad, en la función traerlas a vp
 
 ## Pensión por invalidez a edad $x \in [20, 115]$
 ```{r}
@@ -467,12 +467,16 @@ pen_inv <- function(){
     inv <- list()
     for(x in 20:w){
       res <- (w-x+1)
-      px <- 1-sapply(1:res, function(y) all_qx[[sex]][x+y, y])
+      px <- 1-sapply(1:res, function(y) all_qx[[sex]][x+y, y]) # por si acaso, 
+      # la edad es una más en la tabla all_qx
       qi <- all_qix[[1]][1:res]
       pi <- 1-qi
       tpx <- cumprod(px)
       tpix <- c(1,cumprod(pi)[-res]) # prioridad de invalidez sobre retiro
-      inv[[x-19]] <- c(tpx*tpix*qi*cumsum(cumprod(px)[res:1])[res:1], rep(0, x-20))
+      vida <- sapply(1:res, function(x) c(tpix[0:(x-1)], rep(qi[x]*tpix[x], res-x+1)))
+      vida <- t(vida*tpx)
+      diag(vida) <- diag(vida)
+      inv[[x-19]] <- vida
     }
     pen_inv[[sex]] <- inv
   }
@@ -482,6 +486,34 @@ pen_inv <- function(){
 
 ```{r}
 inv <- pen_inv()
+```
+
+## Pensión por vejez a edad $x \in [20, 115]$
+Como depende del individuo, se calculan todos los posibles casos de pensión por edad por sexo
+
+```{r}
+sob_vej <- function(){
+  w <- 115
+  pen <- list()
+  for(sex in 1:2){
+    ret <- list()
+    for(x in 20:w){
+      res <- (w-x+1)
+      px <- 1-sapply(1:res, function(y) all_qx[[sex]][x+y, y])
+      pi <- 1-all_qix[[1]][1:res]
+      tpx <- cumprod(px)
+      tpix <- cumprod(pi) # prioridad invalidez sobre retiro
+      vida <- t(sapply(1:res, function(x) c(tpix[1:x], rep(tpix[x], res-x))*tpx))
+      ret[[x-19]] <- vida
+    }
+    pen[[sex]] <- ret
+  }
+  return(pen)
+}
+```
+
+```{r}
+pen <- sob_vej()
 ```
 
 ## Pensión por viudez a edad $x \in [20, 115]$
@@ -500,15 +532,10 @@ pen_viu <- function(){
       } else {
         porc_viu <- c(rep(0.7, res))
       }
-      qx <- sapply(1:res, function(y) all_qx[[sex]][x+y, y])
       vpx <- 1 - sapply(1:res, function(y) all_qx[[3-sex]][x+y, y])
-      px <- 1-qx
-      qi <- all_qix[[1]][1:res]
-      pi <- 1-qi
-      tpx <- c(1,cumprod(px)[-res])
-      tpix <- c(1,cumprod(pi)[-res]) # prioridad a la muerte que a la invalidez
-      montos <- tpx*tpix*qx*cumsum(cumprod(vpx)[res:1]*porc_viu[res:1])[res:1]
-      viu[[x-19]] <- c(montos, rep(0, x-20))
+      vtpx <- cumprod(vpx)
+      vida <- t(sapply(1:res, function(x) c(rep(0, x-1), vtpx[x:res])*porc_viu))
+      viu[[x-19]] <- vida
     }
     pen_viu[[sex]] <- viu
   }
@@ -527,26 +554,22 @@ pen_orf <- function(){
   pen_orf <- list()
   for(sex in 1:2){
     orf <- list()
-    for(x in 20:w){
+    for(x in 20:49){
       res <- (w-x+1)
       if(x < 25){
-        porc_orf <- c(rep(0, 25-x), rep(0.3, 25), rep(0, res))
+        porc_orf <- c(rep(0, 25-x), rep(0.3, 25), rep(0, res+x-50))
       } else if(x<50){
-        porc_orf <- c(rep(0.3, x-25), rep(0, res))
+        porc_orf <- c(rep(0.3, 50-x), rep(0, res-50+x))
       } else {
         orf[[x-19]]  <- rep(0, res)
         next
       }
-      qx <- sapply(1:res, function(y) all_qx[[sex]][x+y, y])
+
       opx <- 1 - (sapply(1:res, function(y) all_qx[[1]][x+y, y]) + 
                     sapply(1:res, function(y) all_qx[[2]][x+y, y]))/2
-      px <- 1-qx
-      qi <- all_qix[[1]][1:res]
-      pi <- 1-qi
-      tpx <- c(1,cumprod(px)[-res])
-      tpix <- c(1,cumprod(pi)[-res]) # prioridad a la muerte que a la invalidez
-      montos <- tpx*tpix*qx*cumsum(cumprod(opx)[res:1]*porc_orf[res:1])[res:1]
-      orf[[x-19]] <- c(montos, rep(0, x-20))
+      otpx <- cumprod(opx)
+      vida <- t(sapply(1:res, function(x) c(rep(0, x-1), otpx[x:res])*porc_orf))
+      orf[[x-19]] <- vida
     }
     pen_orf[[sex]] <- orf
   }
@@ -558,50 +581,52 @@ pen_orf <- function(){
 orf <- pen_orf()
 ```
 
-## Pensión por vejez a edad $x \in [20, 115]$
-Como depende del individuo, se calcula nada más la generalidad de la supervivencia y su anualidad
-### Sobrevivencia y anualidades
+## Precálculo de los qx
+
 ```{r}
-sob_vej <- function(){
-  w <- 115
-  pen <- list()
+pc_qx <- function(){
+    w <- 115
+  difsex <- list()
   for(sex in 1:2){
-    ret <- list()
+    tqx <- list()
     for(x in 20:w){
-      res <- (w-x+1)
-      px <- 1-sapply(1:res, function(y) all_qx[[sex]][x+y, y])
-      pi <- 1-all_qix[[1]][1:res]
-      tpx <- cumprod(px)
-      tpix <- cumprod(pi)
-      ret[[x-19]] <- c(tpx*tpix*c(cumsum(cumprod(px[-1])[(res-1):1])[(res-1):1],0), rep(0, x-20))
+      res <- (w-x)
+      qx <- sapply(1:res, function(y) all_qx[[sex]][x+y, y])
+      tqx[[x-19]] <- qx
     }
-    pen[[sex]] <- ret
+    difsex[[sex]] <- tqx
   }
-  return(pen)
+  return(difsex)
 }
 ```
 
 ```{r}
-pen <- sob_vej()
+qx <- pc_qx()
 ```
 
+
 ## Cálculo con pensiones precalculadas
+### Función para leer sumas de columnas de matrices triangulares
+```{r}
+readt <- function(mat){
+  return(sapply(1:ncol(mat), function(x) sum(mat[1:x,x])))
+}
+```
+
 ```{r}
 vp_pen_fut <- function(int, inf){
   int_ef <- ((1+int)/(1+inf))
   anual <- (1 - int_ef^-1)/(int_ef^(-1/12) -1)
-  years <- 0:95
-  limit2 <- 2e6*int_ef^-years
-  limit3.5 <- 3.5e6*int_ef^-years
-  cot_min <- sapply(years, function(y) cotizacion_minima(20+y, 2)[1])
-  edad_min <- sapply(years, function(y) cotizacion_minima(20+y, 2)[2])
+  limit2 <- 2e6*int_ef^-0:95
+  limit3.5 <- 3.5e6*int_ef^-0:95
+  cot_min <- sapply(0:95, function(y) cotizacion_minima(20+y, 2)[1])
+  edad_min <- sapply(0:95, function(y) cotizacion_minima(20+y, 2)[2])
   # Doble iteración para recorrer toda la data, individuos y años
   for(id in 1:5196){
     # Preliminares del individuo
     x <- cotizantes$edad[id]
     sexo <- cotizantes$sexo[id]
     cuota_ini <- cotizantes$cuotas[id]
-    qx <- sapply(0:(115-x), function(y) all_qx[[sex]][x+y, y])
     sal_pen <- pensiones[[id]]
     vp_pen <- sal_pen/(1+int)^(0:(length(sal_pen)-1))
     ind_cot <- vp_pen > limit2[1:length(sal_pen)]
@@ -611,42 +636,59 @@ vp_pen_fut <- function(int, inf){
     cot_pen <- rep(0, length(vp_pen))
     cot_pen[ind_cot] <- temp*0.05
     n_cot <- cuota_ini + cumsum(curv_dens[(x-19):96])
-    ncot180 <- n_cot >= 180
+
     if(sexo == 1){
-      cond_pen <- n_cot >= 300 & x+years >= 65
+      cond_pen <- n_cot >= 300 & x+0:(115-x) >= 65
     } else {
-      cond_pen <- n_cot >= cot_min & x+years >= edad_min
+      cond_pen <- n_cot >= cot_min[1:(115-x+1)] & x+0:(115-x) >= edad_min[1:(115-x+1)]
     }
     ini_cot <- n_cot[first(which(cond_pen))]
     cot_ad <- (ini_cot-300)/1200
-    cot_post <- max(0, n_cot - ini_cot)*2/1500
-    porc_pen <- min(1.25, 1+cot_ad +cot_post)
+    cot_post <- sapply(1:(115-x+1), function(y) max(0, n_cot[y] - ini_cot))*2/1500
+    porc_pen <- sapply(1:(115-x+1), function(y) min(1.25, 1+cot_ad +cot_post[y]))
     
     # Inicialización del dataframe del individuo
-    per <- data.frame(inv = inv[[sexo]][[x-19]],
-                      pen = pen[[sexo]][[x-19]],
-                      viu = viu[[sexo]][[x-19]],
-                      orf = orp[[sexo]][[x-19]],
-                      cotpen = 0, cotviu = 0, cotorf = 0)
-    cot_pen[vp_pen > limit3.5] <- cot_pen[vp_pen > limit3.5] +
-      vp_pen[vp_pen > limit3.5] - limit3.5[vp_pen > limit3.5]
-    vp_pen[vp_pen > limit3.5] <- limit3.5[vp_pen > limit3.5]
+    per <- data.frame(inv = rep(0,115-x+1), pen = 0, viu = 0, orf = 0, cotpen = 0, cotviu = 0, cotorf = 0)
+    limit <- limit3.5[1:length(sal_pen)]
+    cot_pen[vp_pen > limit] <- cot_pen[vp_pen > limit] +
+      vp_pen[vp_pen > limit] - limit3.5[vp_pen > limit]
+    vp_pen[vp_pen > limit] <- limit3.5[vp_pen > limit]
+    
+    data_inv <- inv[[sexo]][[x-19]]
+    cond_inv <- n_cot >= 180 | cot_min_inv(x+0:(115-x+1))
+    cond_invp <- (n_cot>=60)*n_cot/180
+    data_pen <- pen[[sexo]][[x-19]]
+    cond_penp <- (n_cot >= 180 & x+0:(115-x) >= 65)*n_cot/300
     
     # Condiciones de invalidez
-    per$inv <- per$inv*((ncot180 | cot_min_inv(x+j)) + (n_cot>=60)*n_cot/180)
+    per$inv <- readt(data_inv*(cond_inv + (!cond_inv & cond_invp)))
     
     # Condiciones de vejez
-    per$pen <- per$pen*(cond_pen*porc_pen + (ncot180 & x+years >= 65)*n_cot/300)
+    per$pen <- readt(data_pen*(cond_pen*porc_pen + (!cond_pen * cond_penp)))
 
     # Condiciones de sucesión 
-    sucesion <- (per$pen+per$inv)*qx + ncot180 # FALTA
-
+    mux <- qx[[sexo]][[x-20]]
+    sucesion <- (per$pen+per$inv)*mux + (n_cot >= 180)*c(1,diag(data_pen)[-ncol(data_pen)])*mux # hay que pensionarlos
+    # no importa invalidez y muerte al mismo tiempo, entonces por eso el 1 al inicio. 
+    # Los demás si para no contabilizar doble pensión
+    per$viu <- readt(viu[[sexo]][[x-19]]*sucesion)
+    if(x < 50){
+      per$orf <- readt(orf[[sexo]][[x-19]]*sucesion)
+    }
+    
+    
   }
   SEM <- 0.085*anual*(Inv+Pen+Suc)/(anual + int_ef^(-11/12))
+  
   return(t(data.frame(Inv,Pen,Suc,SEM,Cot)))
 }
 ```
 
+```{r}
+t <- proc.time()
+datos <- vp_pen_fut(int_real, 0.02)/1e9
+proc.time() - t
+```
 
 
 
