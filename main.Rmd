@@ -422,7 +422,7 @@ rm(BD_Cotizantes,
    IPC, 
    cuentas, 
    cot_prop,
-   curva_salarial,
+   curva_sal,
    curva_dens, 
    SUPEN,
    unicos, 
@@ -448,17 +448,7 @@ rowSums(datos)[1:4]
 ```
 
 
-
 # desde 0 >:(
-```{r}
-qx <- sapply(0:95, function(x) all_qx[[1]][21+x, 1+x])
-px <- 1-qx
-qi <- all_qix[[1]][1:96]
-pi <- 1-pi
-tpx <- c(1,cumprod(px))
-open <- qx*tpx
-vqx <- sapply(0:95, function(x) all_qx[[2]][21+x, 1+x])
-```
 
 ## Objetivo
 calcular las pensiones por anualidades de mortalidad, en la función traerlas a vp
@@ -715,6 +705,7 @@ proc.time() - t
 rowSums(datos)[1:4]
 ```
 
+# Modelo estocástico
 Resultados similares pero diferentes -> Modelo estocástico
 
 ```{r}
@@ -730,55 +721,82 @@ for(i in 1:5196){
 }
 ```
 
+```{r}
+oqx <- sapply(0:24, function(x)
+  sapply(x:24, function(y)
+    (all_qx[[1]][y+1,y-x+1] + all_qx[[2]][y+1,y-x+1])/2
+    )
+  )
+```
+
 
 ```{r}
 proy_est <- function(int, inf){
   v <- (1+inf)/(1+int)
+  porc <- c(0.525,0.51, 0.494, 0.478, 0.462, 0.446, 0.43)
+  montos <- c(2,3,4,5,6,8) * 367108.55
   res <- data.frame(Inv = rep(0, 96), Pen = 0, Suc = 0, SEM = 0, Cot = 0)
-  min_inv <- cot_min_inv(20:115)
+  anual <- (1-v)/(v^(-1/12)-1)
+  min_inv <- sapply(20:115, function(x) cot_min_inv(x))
   for(id in 1:5196){
-    cuotas <- cuotas[id,]
+    cuotash <- cuotas[[id]]
     cuota <- cotizantes$cuotas[id]
     sexo <- cotizantes$sexo[id]
     x <- cotizantes$edad[id]
+    salario <- cotizantes$sal_prom[id]*v^(-1/2) # continuo
     estado <- 0
     px <- 1-qx[[sexo]][[x - 19]]
     vpx <- 1-qx[[3-sexo]][[x - 19]]
     pix <- 1-all_qix[[sexo]][(x-19):96]
-    cuotas <- c(cuotas, rep(0, 95))
+    cuotash <- c(cuotash, rep(0, 95))
+    salariosh <- unlist(cotizaciones[id,])
     first_pen <- T
-    cotizaciones <- cotizaciones[id, cotizaciones[id,] > 10000]
+    roll_pen <- F
+    cond_hij <- F
+    porc_pen <- 1
+    cot_pen <- 0
     for(j in 1:(115-x)){
-      cuotas[j+5] <- rbinom(1, 12, min(max(0, rnorm(1, curva_densidad$media[x+j-20],
-                                       curva_densidad$std[x+j-20])),1)) 
-      cuota <- cuota + cuotas[j+5]
-        
-      
+      cuotash[j+5] <- rbinom(1, 12, min(max(0, rnorm(1, 
+                  curva_densidad$media[x+j-20], curva_densidad$std[x+j-20])),1)) 
+      cuota <- cuota + cuotash[j+5]
+      salario <- salario*max(0,rnorm(1, curva_salarial$s_x[x+j-20],
+                                     curva_salarial$std[x+j-20]))/(1+inf)
+      salariosh <- c(salariosh, rep(salario, cuotash[j+5]))
       if(estado == 0){ # Trabaja
         if(runif(1) > px[j]){ # Muerte directa
-          estado <- 3
+          if(cuota >= 180 | sum(cuotash[(j+3):(j+5)])>=12){ # Solo si aplica
+            estado <- 3
+            cond_viu <- T
+            if(x+j-25 >=0 & x+j-25 <25){
+              cond_hij <- T
+              c <- j-1
+              opx <- 1 - oqx[[x+j-24]]
+            }
+          } else { # no hay sobrevivientes ni pensión alguna
+            next
+          }
+          
         } else if(runif(1)>pix[j]){ # Invalidez
-          porc_pen <- 1
-          if(cuotas[j+1] >= 180){
+          if(cuotash[j+1] >= 180){
             estado <- 2
-          } else if(x + j < 48 & sum(cuotas[(j+3):(j+5)])>=12 & cuota > min_inv[x-19]){
+          } else if(x + j-1 < 48 & sum(cuotash[(j+3):(j+5)])>=12 & cuota > min_inv[x+j-19]){
             estado <- 2
-          } else if(x + j >= 48 & sum(cuotas[(j+1):(j+5)])>=24 & cuota > min_inv[x-19]){
+          } else if(x + j-1 >= 48 & sum(cuotash[(j+1):(j+5)])>=24 & cuota > min_inv[x+j-19]){
             estado <- 2
-          } else if(cuota >= 60 & (sum(cuotas[(j+3):(j+5)])>=12|sum(cuotas[(j+1):(j+5)])>=24)){
+          } else if(cuota >= 60 & (sum(cuotash[(j+3):(j+5)])>=12|sum(cuotash[(j+1):(j+5)])>=24)){
             estado <- 2
             porc_pen <- cuota/180
           } else { # No hay pensión ni sucesoria, gracias por aportar
             next
           }
         } else { # sobrevive, e invalidez > retiro
-          if(x >= 65 & cuota >= 300){
+          if(x+j-1 >= 65 & cuota >= 300){
             roll_pen <- T
-          } else if (sexo == 2 & x == 64 & cuota >= 357){
+          } else if (sexo == 2 & x+j-1 == 64 & cuota >= 357){
             roll_pen <- T
-          } else if (sexo == 2 & x == 63 & cuota >= 405){
+          } else if (sexo == 2 & x+j-1 == 63 & cuota >= 405){
             roll_pen <- T
-          } else if (x >= 65 & cuota >= 180 & runif(1) >= 0.9){
+          } else if (x+j-1 >= 65 & cuota >= 180 & runif(1) >= 0.9){
             estado <- 1
             porc_pen <- cuota/300
           }
@@ -794,39 +812,94 @@ proy_est <- function(int, inf){
             }
           }
         }
-        if(estado == 1 | estado == 2){# Se acaba justo de pensionar
-          # hay que 
-          # 1. calcular la pensión y pagar por mitades de año (continuo)
+        if(estado == 1 | estado == 2 | estado == 3){
+          # Se acaba justo de cambiar y hay que calcular la pensión
+          cot5m <- T
+          if(sum(salariosh > 5e6*v^(1/12*-359:(length(salariosh)-360)))<0.5){ # histórico 5 millones
+            cot5m <- !salariosh > 5e6*v^(1/12*-359:(length(salariosh)-360))
+          }
+          salariosh <- salariosh[salariosh > 10000 & cot5m]
+          sal_pen <- mean(head(sort(salariosh),300)) # ya están en vp
+          sal_pen <-  sal_pen*porc[findInterval(sal_pen, montos) + 1]*porc_pen 
+          if(sal_pen > 2e6*(1+inf)^-j){
+            cot_pen <- sal_pen*0.05
+          } 
+          if(sal_pen > 3.5e6*(1+inf)^-j){
+            cot_pen <- cot_pen + sal_pen - 3.5e6*(1+inf)^-j
+          }
+          sal_pen <- (anual+v^(11/12))*sal_pen # anualidad más aguinaldo
           if(estado == 1){
-            res$Pen[j] <- res$Pen[j] + sal_pen*v^j # definir 1.
+            res$Pen[j] <- res$Pen[j] + sal_pen*v^j
+            res$Cot[j] <- res$Cot[j] + cot_pen*v^j
           } else if(estado == 2) {
-            res$Inv[j] <- res$Inv[j] + sal_pen*v^j # definir 1.
+            res$Inv[j] <- res$Inv[j] + sal_pen*v^j 
+            res$Cot[j] <- res$Cot[j] + cot_pen*v^j
           }
         }
       } else if(estado == 1 | estado == 2){ # Pensionado
-        if(runif(1) > px[j]){ # Muerte directa
+        if(runif(1) > px[j]){ # Muerte directa. Como ya está pensionado si recibe
           estado <- 3
+          cond_viu <- T
+          if(x+j-25 >0 & x+j-25 <=25){
+            cond_hij <- T
+            c <- j-1
+            opx <- 1 - oqx[[x+j-24]]
+          }
         }
         # sigue un pago más
         if(estado == 1){
-          res$Pen[j] <- res$Pen[j] + sal_pen*v^j # definir 1.
+          res$Pen[j] <- res$Pen[j] + sal_pen*v^j 
+          res$Cot[j] <- res$Cot[j] + cot_pen*v^j
         } else if(estado == 2) {
-          res$Inv[j] <- res$Inv[j] + sal_pen*v^j # definir 1.
+          res$Inv[j] <- res$Inv[j] + sal_pen*v^j 
+          res$Cot[j] <- res$Cot[j] + cot_pen*v^j
         }
       }
-      if(estado == 3){ # Muerto
-        if(x-25 >=0){ # si hay un hijo
-          
+      if(estado == 3){ # Muerto, considerando reciente
+        if(cond_hij){ # si hay un hijo
+          if(x+j-25 >= 24){ # si ya creció y pasó los 25 años
+            cond_hij <- F # ya no más pensión
+          }
+          if(runif(1) > opx[j-c]){ # se muere el hijo
+            cond_hij <- F
+          } else {
+            res$Suc[j] <- res$Suc[j] + sal_pen*v^j*0.3
+            res$Cot[j] <- res$Cot[j] + cot_pen*v^j*0.3
+          }
+        }
+        if(cond_viu){
+          if(runif(1) < vpx[j]){
+            if(x+j-1 < 50){
+              res$Suc[j] <- res$Suc[j] + sal_pen*v^j*0.5
+              res$Cot[j] <- res$Cot[j] + cot_pen*v^j*0.5
+            } else if(x+j-1 < 60){
+              res$Suc[j] <- res$Suc[j] + sal_pen*v^j*0.6
+              res$Cot[j] <- res$Cot[j] + cot_pen*v^j*0.6
+            } else {
+              res$Suc[j] <- res$Suc[j] + sal_pen*v^j*0.7
+              res$Cot[j] <- res$Cot[j] + cot_pen*v^j*0.7
+            }
+          } else {
+            cond_viu <- F # se muere el cónyuge
+          }
         }
       }
-      
     }
   }
+  res$SEM <- (res$Inv + res$Pen + res$Suc)*anual/(anual+v^(11/12))*0.085
+  return(res)
 }
 ```
 
+```{r}
+t <- proc.time()
+datos <- proy_est(int_real, 0.02)
+proc.time()-t
+```
 
-
+```{r}
+colSums(datos)/1e9
+```
 
 
 
