@@ -213,7 +213,7 @@ proc.time() - t
 ```
 
 ```{r}
-rowSums(datos)[1:4]
+colSums(datos)[1:4]
 ```
 
 

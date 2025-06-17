@@ -1,11 +1,12 @@
 vp_pen_futuras <- function(int, inf){
-  int_ef <- ((1+int)/(1+inf))^(1/12) 
-  anual <- (1 - int_ef^-12)/(int_ef-1)
-  anmag <- (anual + int_ef^(-11/12)) # anual más aguinaldo
+  v <- (1+inf)/(1+int) 
+  anual <- (1 - v)/(v^(-1/12)-1)
+  anmag <- (anual + v^(11/12)) # anual más aguinaldo
   years <- 0:95
   Inv <- 0
   Pen <- 0
   Suc <- 0
+  
   # Doble iteración para recorrer toda la data, individuos y años
   for(id in 1:5196){
     # Preliminares del individuo
@@ -22,7 +23,6 @@ vp_pen_futuras <- function(int, inf){
     vp_pen[ind2_cot] <- vp_pen[ind2_cot]*0.95
     cot_pen[ind3_cot] <- cot_pen[ind3_cot] + vp_pen[ind3_cot] - 3.5e6
     vp_pen[ind3_cot] <- 3.5e6
-    
     
     # Inicialización del dataframe del individuo
     first_pen <- T
@@ -45,18 +45,18 @@ vp_pen_futuras <- function(int, inf){
       ncot180 <- n_cot >= 180
       per$act[j+2] <- per$act[j+1]*px*pix
 
-      per$cotp[j+2] <- per$cotp[j+1]*px*int_ef^-12
+      per$cotp[j+2] <- per$cotp[j+1]*px
+      per$inv[j+2] <- per$inv[j+1]*px
       # Invalidez
       if(ncot180 | (dens >= 0.5 & cot_min_inv(x+j))){
-        per$inv[j+2] <- per$act[j+1]*qix*vp_pen[j+1] + per$inv[j+1]*px*int_ef^-12
-      } else if(n_cot>=60 & dens >= 0.5){
+        per$inv[j+2] <- per$act[j+1]*qix*vp_pen[j+1] + per$inv[j+2] 
+        per$cotp[j+2] <- per$act[j+1]*qix*cot_pen[j+1] + per$cotp[j+2]
+      } else if(n_cot>=60){
         porc_invp <- n_cot/180
-        per$inv[j+2] <- per$act[j+1]*qix*porc_invp*vp_pen[j+1] + per$inv[j+1]*px*int_ef^-12
+        per$inv[j+2] <- per$act[j+1]*qix*porc_invp*vp_pen[j+1] + per$inv[j+2] 
         per$cotp[j+2] <- per$act[j+1]*qix*porc_invp*cot_pen[j+1] + per$cotp[j+2]
-      } else {
-        per$inv[j+2] <- per$inv[j+1]*px*int_ef^-12
-      }      
-      
+      }   
+      per$pen[j+2] <- per$pen[j+1]*px
       # Vejez
       if(n_cot >= cot_min[1] & x+j >= cot_min[2]){
         if(first_pen){
@@ -68,27 +68,25 @@ vp_pen_futuras <- function(int, inf){
         porc_pen <- min(1.25, 1+cot_ad +cot_post)
         per$act[j+2] <- per$act[j+2]*0.1
         
-        per$pen[j+2] <- per$act[j+1]*0.9*porc_pen*vp_pen[j+1] + per$pen[j+1]*px*int_ef^-12
+        per$pen[j+2] <- per$act[j+1]*0.9*porc_pen*vp_pen[j+1] + per$pen[j+2]
         per$cotp[j+2] <- per$act[j+1]*0.9*porc_pen*cot_pen[j+1] + per$cotp[j+2]
         
       } else if(ncot180 & x+j >= 65) {
         porc_penp <- n_cot/300
         per$act[j+2] <- per$act[j+2]*0.1 # puede seguir trabajando 
-        per$pen[j+2] <- per$act[j+1]*0.9*porc_penp*vp_pen[j+1] + per$pen[j+1]*px*int_ef^-12
+        per$pen[j+2] <- per$act[j+1]*0.9*porc_penp*vp_pen[j+1] + per$pen[j+2]
         per$cotp[j+2] <- per$act[j+1]*0.9*porc_penp*cot_pen[j+1] + per$cotp[j+2]
-      } else {
-        per$pen[j+2] <- per$pen[j+1]*px*int_ef^-12
-      }
+      } 
       
       # Sucesión
-      per$cotv[j+2] <- per$cotv[j+1]*px*int_ef^-12 + per$act[j+1]*qx
+      per$cotv[j+2] <- per$cotv[j+1]*px + per$act[j+1]*qx
       cond_hij <- x+j-25 < 25 & x+j-25 >=0 # esta última para ver si nació
       ind_suc <- 2
-      per$viu[j+2] <- per$viu[j+1]*v_px*int_ef^-12 + sum(per[j+1, 2:3])*qx # ocupa repetir la pensión
+      per$viu[j+2] <- per$viu[j+1]*v_px + sum(per[j+1, 2:3])*qx # ocupa repetir la pensión
       if(cond_hij){
         o_px <- 1 - 0.5*(all_qx[[1]][x-24+j,j+1] + all_qx[[2]][x-24+j,j+1])
-        per$orp[j+2] <- per$orp[j+1]*o_px*int_ef^-12 + sum(per[j+1, 2:3])*qx
-        per$coth[j+2] <- per$coth[j+1]*px*int_ef^-12 + per$cotp[j+1]*qx
+        per$orp[j+2] <- per$orp[j+1]*o_px + sum(per[j+1, 2:3])*qx
+        per$coth[j+2] <- per$coth[j+1]*px + per$cotp[j+1]*qx
       }
       if(ncot180 | dens >= 0.5){
         per$viu[j+2] <- per$viu[j+2] + per$act[j+1]*qx*vp_pen[j+1]
@@ -106,8 +104,13 @@ vp_pen_futuras <- function(int, inf){
     Inv <- Inv + per$inv
     Pen <- Pen + per$pen
     Suc <- Suc + per$orp + per$viu
-    Cot <- per$cot + per$cotv + per$coth
+    Cot <- per$cotp + per$cotv + per$coth
   }
-  SEM <- 0.085*anual*(Inv+Pen+Suc)/(anual + int_ef^(-11/12))
-  return(t(data.frame(Inv,Pen,Suc,SEM,Cot)))
+  SEM <- 0.085*anual*(Inv+Pen+Suc)/(anual + v^(11/12))
+  return(data.frame(Inv,Pen,Suc,SEM,Cot)*v^years)
+  
+  
+  
+  
+  
 }
