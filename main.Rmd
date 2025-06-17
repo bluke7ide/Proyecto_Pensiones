@@ -17,271 +17,9 @@ source("cod/setup.R")
 source("cod/load_database.R")
 ```
 
-# Tomar los trabajadores activos
-```{r}
-ultimo_año <- data.frame(activo = rowSums(BD_Cotizantes %>%
-                                select(tail(names(.), 12)) > 0)>0)
-```
-
 # Gráficos de CDR
-## Estructura de la población
 ```{r}
-cotizantes <- BD_Cotizantes %>% 
-  select(2,3) %>% 
-  mutate(estado = ultimo_año$activo)
-pensionados <- BD_Pensionados %>% 
-  select(4,5) %>% 
-  mutate(estado = 2)
-names(pensionados) <- names(cotizantes)
-poblacion <- rbind(cotizantes, pensionados) %>% 
-  mutate(edad = 2024 - year(Fec.Nac)) %>% 
-  select(-1)
-names(poblacion) <- tolower(names(poblacion))
-poblacion[poblacion$sexo == "1",]$sexo <- "M"
-poblacion[poblacion$sexo == "2",]$sexo <- "F"
-cotizantes <- poblacion[1:5196,]
-pensionados <- poblacion[5197:5561,]
-```
-
-```{r}
-# Crear grupos de edad
-df <- poblacion %>%
-  mutate(grupo_edad = cut(
-    edad,
-    breaks = seq(0, 100, by = 5),
-    right = FALSE,
-    labels = paste(seq(0, 95, by = 5), seq(4, 99, by = 5), sep = "-")
-  ))
-
-# Agrupar por grupo de edad y sexo
-df_piramide <- df %>%
-  group_by(grupo_edad, sexo) %>%
-  summarise(poblacion = n(), .groups = "drop") %>%
-  mutate(poblacion = ifelse(sexo == "M", -poblacion, poblacion))
-
-fig <- ggplot(df_piramide, aes(x = grupo_edad, y = poblacion, fill = sexo)) +
-  geom_bar(stat = "identity", width = 0.9) +
-  coord_flip() +
-  scale_y_continuous(
-    labels = abs,
-    limits = c(-1, 1) * max(abs(df_piramide$poblacion))
-  ) +
-  labs(
-    x = "Grupo de Edad",
-    y = "Población",
-    fill = "Sexo"
-  ) +
-  theme_minimal() +
-  theme(
-    axis.text.y = element_text(size = 10),
-    plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
-  )
-
-# ggsave("res/piramide.pdf", fig)
-
-
-```
-
-```{r}
-df <- poblacion %>%
-  mutate(
-    sexo = recode(sexo, "M" = "Hombre", "F" = "Mujer"),
-    estado = recode_factor(
-      as.character(estado),
-      "1" = "Activo",
-      "0" = "No activo",
-      "2" = "Pensionado"
-    )
-  )
-
-# Agrupación por sexo
-sexo_df <- df %>%
-  count(categoria = sexo) %>%
-  mutate(grupo = "Sexo")
-
-# Agrupación por estado
-estado_df <- df %>%
-  count(categoria = estado) %>%
-  mutate(grupo = "Estado")
-
-resumen <- bind_rows(sexo_df, estado_df)
-
-colores <- c(
-  "Hombre" = "#377EB8",
-  "Mujer" = "#984EA3",
-  "Activo" = "#4DAF4A",
-  "No activo" = "#FF7F00",
-  "Pensionado" = "#999999"
-)
-
-
-fig <- ggplot(resumen, aes(x = grupo, y = n, fill = categoria)) +
-  geom_bar(stat = "identity", position = "stack", width = 0.6) +
-  geom_text(aes(label = n), position = position_stack(vjust = 0.5), color = "black", size = 4) +
-  scale_fill_manual(values = colores) +
-  labs(
-    x = NULL,
-    y = "Cantidad de Personas",
-    fill = NULL
-  ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
-    axis.text.x = element_text(size = 12),
-    legend.position = "right"
-  )
-
-# ggsave("res/resumen_pob.pdf", fig)
-
-```
-
-## Población activa
-```{r}
-cotizantes_activos <- cotizantes[cotizantes$estado == 1, ]
-
-bar_totals <- cotizantes_activos %>%
-  count(edad) %>%
-  mutate(
-    mitad = n / 2,
-    edad = factor(edad)  
-  )
-
-
-fig <- ggplot(cotizantes_activos, aes(x = factor(edad), fill = sexo)) +
-  geom_bar(position = "stack") +
-  # Línea horizontal en la mitad de cada barra
-  geom_segment(
-    data = bar_totals,
-    aes(x = edad, xend = edad, y = mitad - 0.5, yend = mitad + 0.5),
-    inherit.aes = FALSE,
-    color = "black",
-    linewidth = 3
-  ) +
-  scale_x_discrete(
-  breaks = as.character(seq(min(cotizantes_activos$edad), max(cotizantes_activos$edad), by = 5))
-  ) +
-  labs(
-    x = "Edad",
-    y = "Cantidad de cotizantes activos"
-  ) +
-  theme_minimal() 
-
-# ggsave("res/dist_activos.pdf", fig)
-```
-
-```{r}
-cotizantes <- cotizantes %>% 
-  mutate(antiguedad = apply(BD_Cotizantes[, 4:ncol(BD_Cotizantes)], 1, function(x) which(x != 0)[1]))
-cotizantes$antiguedad <- 2024 - year(as_datetime(names(BD_Cotizantes)[cotizantes$antiguedad+3]))
-```
-
-```{r}
-fig <- ggplot(cotizantes, aes(x = antiguedad, fill = sexo)) + 
-  geom_bar(position = "stack") +
-  labs(
-    x = "Años de antiguedad en el régimen",
-    y = "Cantidad de personas"
-  ) +
-  theme_minimal()
-
-# ggsave("res/activos_ant.pdf", fig)
-```
-
-## Población pensionada
-```{r}
-bar_totals <- pensionados %>%
-  count(edad) %>%
-  mutate(
-    mitad = n / 2,
-    edad = factor(edad) 
-  )
-
-fig <- ggplot(pensionados, aes(x = factor(edad), fill = sexo)) +
-  geom_bar(position = "stack") +
-  scale_x_discrete(
-  breaks = as.character(seq(min(pensionados$edad), max(pensionados$edad), by = 5))
-  ) +
-  labs(
-    x = "Edad",
-    y = "Cantidad de cotizantes activos"
-  ) +
-  theme_minimal() 
-# ggsave("res/dist_pensionados.pdf", fig)
-```
-
-```{r}
-pensionados <- pensionados %>% 
-  mutate(antiguedad = 2024 - year(BD_Pensionados$`Rige de la Pensión`))
-fig <- ggplot(pensionados, aes(x = antiguedad, fill = sexo)) + 
-  geom_bar(position = "stack") +
-  labs(
-    x = "Años pensionado",
-    y = "Cantidad de pensionados"
-  ) +
-  theme_minimal() 
-# ggsave("res/pensionados_ant.pdf", fig)
-```
-
-## Comportamiento de altas y bajas de afiliados
-```{r}
-n_meses <- ncol(BD_Cotizantes) - 3
-
-# cuántas ventanas de 12 meses podemos formar
-n_periodos <- n_meses - 12 + 1
-if(n_periodos < 1) stop("¡No hay suficientes meses para formar un año completo!")
-
-# Preparamos un objeto para guardar los indicadores
-activo <- matrix(0L, 
-                 nrow = nrow(BD_Cotizantes), 
-                 ncol = n_periodos)
-
-# Recorremos cada “ventana” de 12 meses
-for(k in seq_len(n_periodos)){
-  cols_k <- (3 + k):(3 + k + 11)    # e.g. para k=1, cols 4:15; para k=2, 5:16; etc.
-  submat  <- BD_Cotizantes[, cols_k]
-  
-  # fila i = 1 si en esos 12 meses hubo al menos 1 >0
-  activo[, k] <- as.double(rowSums(submat > 0) > 0)
-}
-
-# Ponemos nombres a cada periodo (opcional)
-colnames(activo) <- colnames(BD_Cotizantes)[15:363]
-
-# Finalmente, volcamos en comportamientos
-# (aquí asumo que quieres mantener las 3 primeras columnas y luego estos indicadores)
-comportamientos <- cbind(
-  BD_Cotizantes[, 1:3],
-  as.data.frame(activo)
-)
-```
-
-```{r}
-afiliados <- data.frame(fecha = colnames(BD_Cotizantes)[15:363], activos = colSums(activo))
-fig <- ggplot(afiliados, aes(x = fecha, y = activos)) + 
-  scale_x_discrete(breaks = afiliados$fecha[seq(1, nrow(afiliados), by = 60)]) +
-  geom_point(color = 'purple') +
-    labs(
-    x = "Fecha",
-    y = "Cantidad de afiliados"
-  ) +
-  theme_minimal() 
-# ggsave("res/comportamiento.pdf", fig)
-```
-
-```{r}
-diffs <- activo[, -1, drop = FALSE] - activo[, -ncol(activo), drop = FALSE]
-
-Altas     <- colSums(diffs ==  1)  # pasó de 0 a 1
-Bajas     <- colSums(diffs == -1)  # pasó de 1 a 0
-
-resultado <- data.frame(
-  fecha     = colnames(BD_Cotizantes)[16:363],
-  Altas     = Altas,
-  Bajas     = Bajas,
-  Afiliados = colSums(activo)[2:349],
-  row.names = NULL
-)
-
+source("cod/graficos.R")
 ```
 
 ```{r}
@@ -309,7 +47,8 @@ rm(activo,
    k,
    n_meses,
    n_periodos, 
-   invalidez)
+   invalidez,
+   ultimo_año)
 ```
 
 # Preparación Balance
@@ -378,24 +117,55 @@ find_qx <- function(x, sexo, año){
   return(SUPEN[which(SUPEN$sex == sexo & SUPEN$year == año & SUPEN$edad == x),6])
 }
 año <- 2025
-t <- proc.time()
+system.time(
 all_qx <- list(
   sapply(0:95, function(y) sapply(0:115, function(x) find_qx(x, 1, año+y))),
   sapply(0:95, function(y) sapply(0:115, function(x) find_qx(x, 2, año+y))))
-proc.time() - t
+)
 ```
+
+```{r}
+sal_pen <- function(){
+  pensiones <- list()
+  for(id in 1:5196){
+    x <- cotizantes$edad[id]
+    cuota <- cotizantes$cuotas[id]
+    sal_prom <- cotizantes$sal_prom[id]
+    cuotas_past <- cotizaciones[id,]
+    n_cot <- c(0,cumsum(curv_dens[(x-19):96]))+cuota
+    salarios <- cumprod(curv_sal[(x-19):96])*sal_prom
+    enteros <- round(n_cot - n_cot[1])
+    cantidades <- enteros[-1] - enteros[-length(enteros)]
+    sal_pen <- rep(0, 115-x)
+    sal_pen[1] <- salarios[1]
+    cuotas <- unlist(cuotas_past*niveles)
+    cuotas <- cuotas[cuotas>10000]
+    if(sal_prom == 0){ # supone que ya no va a trabajar?
+      pensiones[[id]] <- rep(mean(head(sort(
+        cuotas[sum(1 - cuotas < 5e6)/enteros[i+1] > 0.5 | cuotas < 5e6],
+        decreasing = T), 300)), 114-x)
+      next
+    }
+    for(i in 1:(114-x)){
+      cuotas <- c(cuotas, rep(salarios[i+1], cantidades[i]))
+      calc_pen <- cuotas[sum(1 - cuotas < 5e6)/enteros[i+1] > 0.5 | cuotas < 5e6]
+      sal_pen[i+1] <- mean(head(sort(calc_pen, decreasing = T), 300))
+    }
+    porc <- c(0.525,0.51, 0.494, 0.478, 0.462, 0.446, 0.43)
+    montos <- c(2,3,4,5,6,8) * 367108.55
+    indices <- findInterval(sal_pen, montos) + 1
+    sal_pen <- sal_pen * porc[indices]
+    pensiones[[id]] <- sal_pen
+  }
+
+  return(pensiones)
+}
+```
+
 
 ### Precálculo de las pensiones
 ```{r}
-t <- proc.time()
-pensiones <- list()
-for(id in 1:5196){
-  pensiones[[id]] <- sal_pen(cotizantes$edad[id],
-                             cotizantes$cuotas[id],
-                             cotizantes$sal_prom[id],
-                             cotizaciones[id,])
-}
-proc.time() - t
+system.time(pensiones <- sal_pen())
 ```
 
 ### Obtención del interés
@@ -404,12 +174,12 @@ hoja <- BD_Financiero[[3]]
 int_mes <- sapply(1:120, function(x)  (hoja[x+1, 2] - hoja[x,2] - hoja[x,4] + hoja[x,5])/(hoja[x,2] + (hoja[x,4] - hoja[x,5])/2)+1)
 int_mes <- unlist(int_mes)
 int <- sapply(1:109, function(x) prod(int_mes[x:(11+x)])-1)
-inf_max <- IPC$Nivel[564]/IPC$Nivel[552] - 1
 plot(int)
 lines((0:109)*-0.0003859 + 0.177)
 ```
 
 ```{r}
+inf_max <- IPC$Nivel[564]/IPC$Nivel[552] - 1
 (int_real <- mean(int) - inf_max)
 ```
 
@@ -417,7 +187,6 @@ lines((0:109)*-0.0003859 + 0.177)
 rm(BD_Cotizantes,
    BD_Pensionados,
    BD_Financiero,
-   ultimo_año,
    poblacion, 
    IPC, 
    cuentas, 
@@ -735,7 +504,7 @@ proy_est <- function(int, inf){
   v <- (1+inf)/(1+int)
   porc <- c(0.525,0.51, 0.494, 0.478, 0.462, 0.446, 0.43)
   montos <- c(2,3,4,5,6,8) * 367108.55
-  res <- data.frame(Inv = rep(0, 96), Pen = 0, Suc = 0, SEM = 0, Cot = 0)
+  res <- data.frame(Inv = rep(0, 96), Pen = 0, Suc = 0, CotAct = 0, CotPen = 0, SEM = 0)
   anual <- (1-v)/(v^(-1/12)-1)
   min_inv <- sapply(20:115, function(x) cot_min_inv(x))
   for(id in 1:5196){
@@ -743,7 +512,7 @@ proy_est <- function(int, inf){
     cuota <- cotizantes$cuotas[id]
     sexo <- cotizantes$sexo[id]
     x <- cotizantes$edad[id]
-    salario <- cotizantes$sal_prom[id]*v^(-1/2) # continuo
+    salario <- cotizantes$sal_prom[id] 
     estado <- 0
     px <- 1-qx[[sexo]][[x - 19]]
     vpx <- 1-qx[[3-sexo]][[x - 19]]
@@ -753,18 +522,13 @@ proy_est <- function(int, inf){
     first_pen <- T
     roll_pen <- F
     cond_hij <- F
+    cond_viu <- F
     porc_pen <- 1
     cot_pen <- 0
     for(j in 1:(115-x)){
-      cuotash[j+5] <- rbinom(1, 12, min(max(0, rnorm(1, 
-                  curva_densidad$media[x+j-20], curva_densidad$std[x+j-20])),1)) 
-      cuota <- cuota + cuotash[j+5]
-      salario <- salario*max(0,rnorm(1, curva_salarial$s_x[x+j-20],
-                                     curva_salarial$std[x+j-20]))/(1+inf)
-      salariosh <- c(salariosh, rep(salario, cuotash[j+5]))
       if(estado == 0){ # Trabaja
         if(runif(1) > px[j]){ # Muerte directa
-          if(cuota >= 180 | sum(cuotash[(j+3):(j+5)])>=12){ # Solo si aplica
+          if(cuota >= 180 | sum(cuotash[(j+2):(j+4)])>=12){ # Solo si aplica
             estado <- 3
             cond_viu <- T
             if(x+j-25 >=0 & x+j-25 <25){
@@ -779,17 +543,28 @@ proy_est <- function(int, inf){
         } else if(runif(1)>pix[j]){ # Invalidez
           if(cuotash[j+1] >= 180){
             estado <- 2
-          } else if(x + j-1 < 48 & sum(cuotash[(j+3):(j+5)])>=12 & cuota > min_inv[x+j-19]){
+          } else if(x + j-1 < 48 & sum(cuotash[(j+2):(j+4)])>=12 & cuota > min_inv[x+j-19]){
             estado <- 2
-          } else if(x + j-1 >= 48 & sum(cuotash[(j+1):(j+5)])>=24 & cuota > min_inv[x+j-19]){
+          } else if(x + j-1 >= 48 & sum(cuotash[j:(j+4)])>=24 & cuota > min_inv[x+j-19]){
             estado <- 2
-          } else if(cuota >= 60 & (sum(cuotash[(j+3):(j+5)])>=12|sum(cuotash[(j+1):(j+5)])>=24)){
+          } else if(cuota >= 60 & (sum(cuotash[(j+2):(j+4)])>=12|sum(cuotash[j:(j+4)])>=24)){
             estado <- 2
             porc_pen <- cuota/180
           } else { # No hay pensión ni sucesoria, gracias por aportar
             next
           }
         } else { # sobrevive, e invalidez > retiro
+          prob_cot <- min(max(0, rnorm(1, 
+                  curva_densidad$media[x+j-20], curva_densidad$std[x+j-20])),1)
+          cuotash[j+5] <- rbinom(1, 12, prob_cot) 
+          cuota <- cuota + cuotash[j+5]
+          # if(salario == 0 & runif(1) < prob_cot){ # probabilidad de volver a trabajar
+          #   salario <- cotizantes$sal_prom[id]
+          # }
+          salario <- salario*max(0,rnorm(1, curva_salarial$s_x[x+j-20],
+                                         curva_salarial$std[x+j-20]))
+          salariosh <- c(salariosh, rep(salario, cuotash[j+5]))
+          res$CotAct[j] <- res$CotAct[j] + 0.15*cuotash[j+5]*salario # cotizaciones
           if(x+j-1 >= 65 & cuota >= 300){
             roll_pen <- T
           } else if (sexo == 2 & x+j-1 == 64 & cuota >= 357){
@@ -823,24 +598,26 @@ proy_est <- function(int, inf){
           sal_pen <-  sal_pen*porc[findInterval(sal_pen, montos) + 1]*porc_pen 
           if(sal_pen > 2e6*(1+inf)^-j){
             cot_pen <- sal_pen*0.05
+            sal_pen <- sal_pen*0.95
           } 
           if(sal_pen > 3.5e6*(1+inf)^-j){
             cot_pen <- cot_pen + sal_pen - 3.5e6*(1+inf)^-j
+            sal_pen <- 3.5e6*(1+inf)^-j
           }
           sal_pen <- (anual+v^(11/12))*sal_pen # anualidad más aguinaldo
           if(estado == 1){
-            res$Pen[j] <- res$Pen[j] + sal_pen*v^j
-            res$Cot[j] <- res$Cot[j] + cot_pen*v^j
+            res$Pen[j] <- res$Pen[j] + sal_pen
+            res$CotPen[j] <- res$CotPen[j] + cot_pen
           } else if(estado == 2) {
-            res$Inv[j] <- res$Inv[j] + sal_pen*v^j 
-            res$Cot[j] <- res$Cot[j] + cot_pen*v^j
+            res$Inv[j] <- res$Inv[j] + sal_pen 
+            res$CotPen[j] <- res$CotPen[j] + cot_pen
           }
         }
       } else if(estado == 1 | estado == 2){ # Pensionado
         if(runif(1) > px[j]){ # Muerte directa. Como ya está pensionado si recibe
           estado <- 3
           cond_viu <- T
-          if(x+j-25 >0 & x+j-25 <=25){
+          if(x+j-25 >=0 & x+j-25 <25){
             cond_hij <- T
             c <- j-1
             opx <- 1 - oqx[[x+j-24]]
@@ -848,11 +625,11 @@ proy_est <- function(int, inf){
         }
         # sigue un pago más
         if(estado == 1){
-          res$Pen[j] <- res$Pen[j] + sal_pen*v^j 
-          res$Cot[j] <- res$Cot[j] + cot_pen*v^j
+          res$Pen[j] <- res$Pen[j] + sal_pen
+          res$CotPen[j] <- res$CotPen[j] + cot_pen
         } else if(estado == 2) {
-          res$Inv[j] <- res$Inv[j] + sal_pen*v^j 
-          res$Cot[j] <- res$Cot[j] + cot_pen*v^j
+          res$Inv[j] <- res$Inv[j] + sal_pen 
+          res$CotPen[j] <- res$CotPen[j] + cot_pen
         }
       }
       if(estado == 3){ # Muerto, considerando reciente
@@ -863,29 +640,30 @@ proy_est <- function(int, inf){
           if(runif(1) > opx[j-c]){ # se muere el hijo
             cond_hij <- F
           } else {
-            res$Suc[j] <- res$Suc[j] + sal_pen*v^j*0.3
-            res$Cot[j] <- res$Cot[j] + cot_pen*v^j*0.3
+            res$Suc[j] <- res$Suc[j] + sal_pen*0.3
+            res$CotPen[j] <- res$CotPen[j] + cot_pen*0.3
           }
         }
         if(cond_viu){
           if(runif(1) < vpx[j]){
             if(x+j-1 < 50){
-              res$Suc[j] <- res$Suc[j] + sal_pen*v^j*0.5
-              res$Cot[j] <- res$Cot[j] + cot_pen*v^j*0.5
+              res$Suc[j] <- res$Suc[j] + sal_pen*0.5
+              res$CotPen[j] <- res$CotPen[j] + cot_pen*0.5
             } else if(x+j-1 < 60){
-              res$Suc[j] <- res$Suc[j] + sal_pen*v^j*0.6
-              res$Cot[j] <- res$Cot[j] + cot_pen*v^j*0.6
+              res$Suc[j] <- res$Suc[j] + sal_pen*0.6
+              res$CotPen[j] <- res$CotPen[j] + cot_pen*0.6
             } else {
-              res$Suc[j] <- res$Suc[j] + sal_pen*v^j*0.7
-              res$Cot[j] <- res$Cot[j] + cot_pen*v^j*0.7
+              res$Suc[j] <- res$Suc[j] + sal_pen*0.7
+              res$CotPen[j] <- res$CotPen[j] + cot_pen*0.7
             }
           } else {
             cond_viu <- F # se muere el cónyuge
           }
         }
       }
-    }
+    } 
   }
+  res[,1:5] <- res[,1:5]*v^(-1/2)*v^(1:95)
   res$SEM <- (res$Inv + res$Pen + res$Suc)*anual/(anual+v^(11/12))*0.085
   return(res)
 }
