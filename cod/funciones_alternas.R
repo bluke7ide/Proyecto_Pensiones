@@ -1,24 +1,3 @@
-sal_pen <- function(x, cuota, sal_prom, cuotas_past){
-  n_cot <- c(0,cumsum(curv_dens[(x-19):96]))+cuota
-  salarios <- cumprod(curv_sal[(x-19):96])*sal_prom
-  enteros <- round(n_cot - n_cot[1])
-  cantidades <- enteros[-1] - enteros[-length(enteros)]
-  sal_pen <- rep(0, 115-x)
-  sal_pen[1] <- salarios[1]
-  cuotas <- unlist(cuotas_past*niveles)
-  cuotas <- cuotas[cuotas>10000]
-  for(i in 1:(114-x)){
-    cuotas <- c(cuotas, rep(salarios[i+1], cantidades[i]))
-    calc_pen <- cuotas[sum(1 - cuotas < 5e6)/enteros[i+1] > 0.5 | cuotas < 5e6]
-    sal_pen[i+1] <- mean(head(sort(calc_pen, decreasing = T), 300))
-  }
-  porc <- c(0.525,0.51, 0.494, 0.478, 0.462, 0.446, 0.43)
-  montos <- c(2,3,4,5,6,8) * 367108.55
-  indices <- findInterval(sal_pen, montos) + 1
-  sal_pen <- sal_pen * porc[indices]
-  return(sal_pen)
-}
-
 cot_prop <- function(){
   # Tomando el valor presente
   vp_cot <- sapply(1:ncol(cotizaciones), function(x) t(cotizaciones[,x]) * niveles[[x]])
