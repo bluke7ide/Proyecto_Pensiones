@@ -394,12 +394,13 @@ vp_pen_fut <- function(int, inf){
     vp_pen <- c(pensiones[[id]],0)
     ind2_cot <- vp_pen > 2e6
     ind3_cot <- vp_pen > 3.5e6
-    vp_pen <- vp_pen*anmag
     cot_pen <- rep(0, length(vp_pen))
     cot_pen[ind2_cot] <- vp_pen[ind2_cot]*0.05
     vp_pen[ind2_cot] <- vp_pen[ind2_cot]*0.95
     cot_pen[ind3_cot] <- cot_pen[ind3_cot] + vp_pen[ind3_cot] - 3.5e6
     vp_pen[ind3_cot] <- 3.5e6
+    vp_pen <- vp_pen*anmag
+    cot_pen <- cot_pen*anmag
     n_cot <- cuota_ini + cumsum(curv_dens[(x-19)+int_years])
     if(sexo == 1){
       cond_pen <- n_cot >= 300 & x+int_years >= 65
@@ -535,30 +536,27 @@ proy_est <- function(int, inf){
               opx <- 1 - oqx[[x+j-24]]
             }
           } else { # no hay sobrevivientes ni pensión alguna
-            next
+            break
           }
           
         } else if(runif(1)>pix[j]){ # Invalidez
           if(cuotash[j+1] >= 180){
             estado <- 2
-          } else if(x + j-1 < 48 & sum(cuotash[(j+2):(j+4)])>=12 & cuota > min_inv[x+j-19]){
+          } else if(x + j-1 < 48 & sum(cuotash[(j+2):(j+4)])>=12 & cuota > min_inv[x+j-20]){
             estado <- 2
-          } else if(x + j-1 >= 48 & sum(cuotash[j:(j+4)])>=24 & cuota > min_inv[x+j-19]){
+          } else if(x + j-1 >= 48 & sum(cuotash[j:(j+4)])>=24 & cuota > min_inv[x+j-20]){
             estado <- 2
           } else if(cuota >= 60 & (sum(cuotash[(j+2):(j+4)])>=12|sum(cuotash[j:(j+4)])>=24)){
             estado <- 2
             porc_pen <- cuota/180
           } else { # No hay pensión ni sucesoria, gracias por aportar
-            next
+            break
           }
         } else { # sobrevive, e invalidez > retiro
           prob_cot <- min(max(0, rnorm(1, 
                   curva_densidad$media[x+j-20], curva_densidad$std[x+j-20])),1)
           cuotash[j+5] <- rbinom(1, 12, prob_cot) 
           cuota <- cuota + cuotash[j+5]
-          # if(salario == 0 & runif(1) < prob_cot){ # probabilidad de volver a trabajar
-          #   salario <- cotizantes$sal_prom[id]
-          # }
           salario <- salario*max(0,rnorm(1, curva_salarial$s_x[x+j-20],
                                          curva_salarial$std[x+j-20]))
           salariosh <- c(salariosh, rep(salario, cuotash[j+5]))
@@ -569,7 +567,7 @@ proy_est <- function(int, inf){
             roll_pen <- T
           } else if (sexo == 2 & x+j-1 == 63 & cuota >= 405){
             roll_pen <- T
-          } else if (x+j-1 >= 65 & cuota >= 180 & runif(1) >= 0.9){
+          } else if (x+j-1 >= 65 & cuota >= 180 & runif(1) <= 0.9){
             estado <- 1
             porc_pen <- cuota/300
           }
@@ -579,7 +577,7 @@ proy_est <- function(int, inf){
               first_pen <- F
               ini_pen <- cuota
             }
-            if(runif(1) >= 0.9){
+            if(runif(1) <= 0.9){
               estado <- 1
               porc_pen <- min(1.25, 1 + (cuota-ini_pen)*2/1500 + (ini_pen-300)/1200)
             }
@@ -588,19 +586,20 @@ proy_est <- function(int, inf){
         if(estado == 1 | estado == 2 | estado == 3){
           # Se acaba justo de cambiar y hay que calcular la pensión
           cot5m <- T
-          if(sum(salariosh > 5e6*v^(1/12*-359:(length(salariosh)-360)))<0.5){ # histórico 5 millones
-            cot5m <- !salariosh > 5e6*v^(1/12*-359:(length(salariosh)-360))
+          salariosh <- salariosh*(1+inf)^(1/12*-359:(length(salariosh)-360))
+          if(sum(salariosh > 5e6)<0.5){ # histórico 5 millones
+            cot5m <- !salariosh > 5e6
           }
           salariosh <- salariosh[salariosh > 10000 & cot5m]
-          sal_pen <- mean(head(sort(salariosh),300)) # ya están en vp
+          sal_pen <- mean(head(sort(salariosh),300))*(1+inf)^j 
           sal_pen <-  sal_pen*porc[findInterval(sal_pen, montos) + 1]*porc_pen 
-          if(sal_pen > 2e6*(1+inf)^-j){
+          if(sal_pen > 2e6){
             cot_pen <- sal_pen*0.05
             sal_pen <- sal_pen*0.95
           } 
-          if(sal_pen > 3.5e6*(1+inf)^-j){
-            cot_pen <- cot_pen + sal_pen - 3.5e6*(1+inf)^-j
-            sal_pen <- 3.5e6*(1+inf)^-j
+          if(sal_pen > 3.5e6){
+            cot_pen <- cot_pen + sal_pen - 3.5e6
+            sal_pen <- 3.5e6
           }
           sal_pen <- (anual+v^(11/12))*sal_pen # anualidad más aguinaldo
           if(estado == 1){
@@ -677,8 +676,37 @@ proc.time()-t
 colSums(datos)/1e9
 ```
 
+## Paralelización
+```{r}
+variables <- c("cotizantes", "cotizaciones", "qx", "all_qix", "int_real", "proy_est", "cot_min_inv", "cuotas", "curva_densidad", "curva_salarial", "oqx")
+proy_est_par <- function(n, cores) {
+  # Crear un clúster seguro
+  cl <- makeCluster(cores) #min(detectCores()/2,
+  # Exportar las variables necesarias al clúster
+  clusterExport(
+    cl,
+    varlist = variables,
+    envir = environment()
+  )
+  # Ejecutar la proyección en paralelo
+  resultados <- parSapply(cl, 1:n, function(x) {
+    proy_est(int_real, 0.02)
+  })
+  # Detener el clúster después de la ejecución
+  stopCluster(cl)
+  return(resultados)
+}
+```
 
+```{r}
+n <- 100
+system.time(proyecciones <- proy_est_par(n, 5))
+```
 
+```{r}
+sumas <- sapply(1:n, function(x) colSums(as.data.frame(proyecciones[,x])))
+sapply(1:6, function(y) mean(sumas[y,]))/1e9
+```
 
 
 

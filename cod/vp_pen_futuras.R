@@ -20,13 +20,13 @@ vp_pen_futuras <- function(int, inf){
     vp_pen <- c(pensiones[[id]], rep(0, x-19))
     ind2_cot <- vp_pen > 2e6
     ind3_cot <- vp_pen > 3.5e6
-    vp_pen <- vp_pen*anmag
     cot_pen <- rep(0, length(vp_pen))
     cot_pen[ind2_cot] <- vp_pen[ind2_cot]*0.05
     vp_pen[ind2_cot] <- vp_pen[ind2_cot]*0.95
     cot_pen[ind3_cot] <- cot_pen[ind3_cot] + vp_pen[ind3_cot] - 3.5e6
     vp_pen[ind3_cot] <- 3.5e6
-
+    vp_pen <- vp_pen*anmag
+    cot_pen <- cot_pen*anmag
     # Inicialización del dataframe del individuo
     first_pen <- T
     per <- data.frame(act = rep(0, 96), inv = 0, pen = 0, viu = 0, orp = 0,
