@@ -14,7 +14,7 @@ vp_pen_futuras <- function(int, inf){
     # Preliminares del individuo
     x <- cotizantes$edad[id]
     sexo <- cotizantes$sexo[id]
-    cuota_ini <- cotizantes$cuotas[id]
+    n_cot <- cotizantes$cuotas[id]
     salario <- cotizantes$sal_prom[id]
     porc_viu <- porcentaje_viudez(x)
     vp_pen <- c(pensiones[[id]], rep(0, x-19))
@@ -45,7 +45,7 @@ vp_pen_futuras <- function(int, inf){
       pix <- 1 - qix
       cot_min <- cotizacion_minima(x+j, sexo)
       dens <- curv_dens[x+j-19]
-      n_cot <- cuota_ini + j*dens
+      n_cot <- n_cot + dens
       ncot180 <- n_cot >= 180
       per$act[j+2] <- per$act[j+1]*px*pix
       per$cotp[j+2] <- per$cotp[j+1]*px
@@ -62,6 +62,7 @@ vp_pen_futuras <- function(int, inf){
         per$cotp[j+2] <- per$act[j+1]*qix*porc_invp*cot_pen[j+1] + per$cotp[j+2]
       }   
       per$pen[j+2] <- per$pen[j+1]*px
+
       # Vejez
       if(n_cot >= cot_min[1] & x+j >= cot_min[2]){
         if(first_pen){
@@ -111,7 +112,7 @@ vp_pen_futuras <- function(int, inf){
     Suc <- Suc + per$orp + per$viu
     Cot <- Cot + per$cotp + per$cotv + per$coth
     Cuotas <- Cuotas + per$cuotas
-    browser()
+
   }
   Cuotas <- Cuotas*0.15*v^(1/2)
   SEM <- 0.085*anual*(Inv+Pen+Suc)/(anual + v^(11/12))

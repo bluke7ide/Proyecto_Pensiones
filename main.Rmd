@@ -427,6 +427,7 @@ vp_pen_fut <- function(int, inf){
     
     # Condiciones de invalidez
     qr <- c(rep(1, ini_pen-1), (0.09)^(0:(115-x+1-ini_pen))*0.9)
+
     temp <- data_inv*(cond_inv + (!cond_inv & cond_invp))*qr
     per$inv <- readt(temp*vp_pen)
     per$cotinv <- readt(temp*cot_pen)
@@ -452,8 +453,9 @@ vp_pen_fut <- function(int, inf){
     
     # Cotizaciones futuras
     cuotas <- diag(data_pen)*qr*cumprod(curv_sal[x-19+int_years])*cotizantes$sal_prom[id]*curv_dens[(x-19)+int_years]
-    res$Cuotas <- res$Cuotas + c(cuotas*0.15, rep(0, 95-(115-x)))
+    res$Cuotas <- res$Cuotas + c(cuotas, rep(0, 95-(115-x)))
   }
+  res$Cuotas <- res$Cuotas*0.15*v^(-1/2)
   res$SEM <- 0.085*anual*(res$Inv+res$Pen+res$Suc)/anmag
   
   return(t(res*v^((1:96))))
@@ -462,12 +464,12 @@ vp_pen_fut <- function(int, inf){
 
 ```{r}
 t <- proc.time()
-datos <- vp_pen_fut(int_real, 0.02)/1e9
+datos2 <- vp_pen_fut(int_real, 0.02)/1e9
 proc.time() - t
 ```
 
 ```{r}
-rowSums(datos)
+rowSums(datos2)
 ```
 
 # Modelo estocástico
