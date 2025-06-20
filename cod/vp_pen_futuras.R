@@ -116,9 +116,4 @@ vp_pen_futuras <- function(int, inf){
   Cuotas <- Cuotas*0.15*v^(1/2)
   SEM <- 0.085*anual*(Inv+Pen+Suc)/(anual + v^(11/12))
   return(data.frame(Inv,Pen,Suc,SEM,Cot,Cuotas)*v^years)
-  
-  
-  
-  
-  
 }
