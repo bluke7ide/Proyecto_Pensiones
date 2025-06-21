@@ -296,8 +296,7 @@ pen_viu <- function(){
         porc_viu <- c(rep(0.7, res))
       }
       vpx <- 1 - sapply(1:res, function(y) all_qx[[3-sex]][x+y, y])
-      vtpx <- cumprod(vpx)
-      vida <- t(sapply(1:res, function(x) c(rep(0, x-1), vtpx[x:res])*porc_viu))
+      vida <- t(sapply(1:res, function(x) c(rep(0, x-1), cumprod(vpx[x:res]))*porc_viu))
       viu[[x-19]] <- vida
     }
     pen_viu[[sex]] <- viu
@@ -330,8 +329,7 @@ pen_orf <- function(){
 
       opx <- 1 - (sapply(1:res, function(y) all_qx[[1]][x+y, y]) + 
                     sapply(1:res, function(y) all_qx[[2]][x+y, y]))/2
-      otpx <- cumprod(opx)
-      vida <- t(sapply(1:res, function(x) c(rep(0, x-1), otpx[x:res])*porc_orf))
+      vida <- t(sapply(1:res, function(x) c(rep(0, x-1), cumprod(opx[x:res]))*porc_orf))
       orf[[x-19]] <- vida
     }
     pen_orf[[sex]] <- orf
@@ -708,6 +706,23 @@ sumas <- sapply(1:n, function(x) colSums(as.data.frame(proyecciones[,x])))
 sapply(1:6, function(y) mean(sumas[y,]))/1e9
 ```
 
+```{r}
+pensiones_actuales <- function(int, inf){
+  res <- data.frame(Inv = rep(0, 95), Pen = 0, Suc = 0, Cot = 0, SEM = 0)
+  for(id in 1:365){
+    x <- pensionados$edad[id]
+    sexo <- pensionados$sexo[id]
+    tipo <- pensionados$COD_TIPO_PENSION[id]
+    if(tipo == "Invalidez" | tipo == "Vejez"){ # pension regular
+      px <- 1-qx[[sexo]][x-19]
+      
+      
+    } else {
+      
+    }
+  }
+}
+```
 
 
 
