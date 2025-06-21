@@ -708,33 +708,53 @@ pensiones_actuales <- function(int, inf){
   v <- (1+inf)/(1+int)
   anual <- (1-v)/(v^(-1/12)-1)
   anmag <- (anual + v^(11/12)) 
-  res <- data.frame(Inv = rep(0, 95), Pen = 0, Suc = 0, SEM = 0)
+  res <- data.frame(Inv = rep(0, 96), Pen = 0, Suc = 0, SEM = 0)
   for(id in 1:365){
     x <- pensionados$edad[id]
     sexo <- pensionados$sexo[id]
     tipo <- pensionados$COD_TIPO_PENSION[id]
     vp_pen <- pensionados$MONTO[id]*anmag
     if(tipo == "Invalidez" | tipo == "Vejez"){ # pension regular
-      qx <- qx[[sexo]][x-19]
-      tpx <- c(1,cumprod(1-px)[-(115-x+1)])
+
+      aqx <- qx[[sexo]][[x-19]]
+      tpx <- c(1,cumprod(1-aqx))
+      aqx <- c(aqx,1)
       if(tipo == "Invalidez" ){
-        res$Inv <- res$Inv + tpx*vp_pen
+        res$Inv <- res$Inv + c(tpx*vp_pen,rep(0, 95-(115-x)))
       } else {
-        res$Pen <- res$Pen + tpx*vp_pen
+        res$Pen <- res$Pen + c(tpx*vp_pen,rep(0, 95-(115-x)))
       }
       # viudez y orfandad
-      res$Suc <- res$Suc + readt(viu[[3-sexo]][x-19]*tpx*qx)*vp_pen
-      res$Suc <- res$Suc + readt(orf[[x-19]]*tpx*qx)*vp_pen
+
+      res$Suc <- res$Suc + c(readt(viu[[3-sexo]][[x-19]]*tpx*aqx)*vp_pen,rep(0, 95-(115-x)))
+      if(x < 50){
+
+        res$Suc <- res$Suc + c(readt(orf[[x-19]]*tpx*aqx)*vp_pen,rep(0, 95-(115-x)))        
+      }
+
     } else {
-      if(pensionados$COD_PARENTESCO[id] == 1){
-        
+      if(pensionados$COD_PARENTESCO[id] == "H"){
+        if(x >= 25){ # ya no más pensión
+          next
+        }
+        res$Suc <- res$Suc + c(cumprod(1-oqx[[x+1]])*vp_pen, rep(0, 96-(25-x)))
+      } else {
+        res$Suc <- res$Suc + c(cumprod(1-qx[[sexo]][[x-20]])*vp_pen, rep(0, 95-(115-x)))
       }
     }
   }
+  res$SEM <- (res$Inv + res$Pen + res$Suc)*anual/(anual+v^(11/12))*0.085
+  return(res*v^(1:95))
 }
 ```
 
+```{r}
+pen_act <- pensiones_actuales(int_real, 0.02)
+```
 
+```{r}
+colSums(pen_act)/1e9
+```
 
 
 
