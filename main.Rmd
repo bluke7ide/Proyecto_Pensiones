@@ -79,7 +79,7 @@ cotizantes <- cotizantes %>% mutate(
 )
 cotizaciones <- BD_Cotizantes %>% select(-1,-2,-3)
 pensionados <- cbind(pensionados, BD_Pensionados) 
-pensionados <- pensionados %>% select(-c(4,7,8))
+pensionados <- pensionados %>% select(-c(4,8))
 pensionados <- pensionados %>% mutate(
   edad = 2024 - year(pensionados$fecha_nac)
 )
@@ -313,28 +313,24 @@ viu <- pen_viu()
 ```{r}
 pen_orf <- function(){
   w <- 115
-  pen_orf <- list()
-  for(sex in 1:2){
-    orf <- list()
-    for(x in 20:49){
-      res <- (w-x+1)
-      if(x < 25){
-        porc_orf <- c(rep(0, 25-x), rep(0.3, 25), rep(0, res+x-50))
-      } else if(x<50){
-        porc_orf <- c(rep(0.3, 50-x), rep(0, res-50+x))
-      } else {
-        orf[[x-19]]  <- rep(0, res)
-        next
-      }
-
-      opx <- 1 - (sapply(1:res, function(y) all_qx[[1]][x+y, y]) + 
-                    sapply(1:res, function(y) all_qx[[2]][x+y, y]))/2
-      vida <- t(sapply(1:res, function(x) c(rep(0, x-1), cumprod(opx[x:res]))*porc_orf))
-      orf[[x-19]] <- vida
+  orf <- list()
+  for(x in 20:49){
+    res <- (w-x+1)
+    if(x < 25){
+      porc_orf <- c(rep(0, 25-x), rep(0.3, 25), rep(0, res+x-50))
+    } else if(x<50){
+      porc_orf <- c(rep(0.3, 50-x), rep(0, res-50+x))
+    } else {
+      orf[[x-19]]  <- rep(0, res)
+      next
     }
-    pen_orf[[sex]] <- orf
+
+    opx <- 1 - (sapply(1:res, function(y) all_qx[[1]][x+y, y]) + 
+                  sapply(1:res, function(y) all_qx[[2]][x+y, y]))/2
+    vida <- t(sapply(1:res, function(x) c(rep(0, x-1), cumprod(opx[x:res]))*porc_orf))
+    orf[[x-19]] <- vida
   }
-  return(pen_orf)
+  return(orf)
 }
 ```
 
@@ -442,8 +438,8 @@ vp_pen_fut <- function(int, inf){
     per$viu <- readt(viu[[sexo]][[x-19]]*suc_pen)
     per$cotviu <- readt(viu[[sexo]][[x-19]]*suc_cot)
     if(x < 50){
-      per$orf <- readt(orf[[sexo]][[x-19]]*suc_pen)
-      per$cotorf <- readt(orf[[sexo]][[x-19]]*suc_cot)
+      per$orf <- readt(orf[[x-19]]*suc_pen)
+      per$cotorf <- readt(orf[[x-19]]*suc_cot)
     }
     res$Inv <- res$Inv + c(per$inv, rep(0, 95-(115-x)))
     res$Pen <- res$Pen + c(per$pen, rep(0, 95-(115-x)))
@@ -707,18 +703,32 @@ sapply(1:6, function(y) mean(sumas[y,]))/1e9
 ```
 
 ```{r}
+# IMPORTANTE: ninguna pensión sobrepasa los 2 millones
 pensiones_actuales <- function(int, inf){
-  res <- data.frame(Inv = rep(0, 95), Pen = 0, Suc = 0, Cot = 0, SEM = 0)
+  v <- (1+inf)/(1+int)
+  anual <- (1-v)/(v^(-1/12)-1)
+  anmag <- (anual + v^(11/12)) 
+  res <- data.frame(Inv = rep(0, 95), Pen = 0, Suc = 0, SEM = 0)
   for(id in 1:365){
     x <- pensionados$edad[id]
     sexo <- pensionados$sexo[id]
     tipo <- pensionados$COD_TIPO_PENSION[id]
+    vp_pen <- pensionados$MONTO[id]*anmag
     if(tipo == "Invalidez" | tipo == "Vejez"){ # pension regular
-      px <- 1-qx[[sexo]][x-19]
-      
-      
+      qx <- qx[[sexo]][x-19]
+      tpx <- c(1,cumprod(1-px)[-(115-x+1)])
+      if(tipo == "Invalidez" ){
+        res$Inv <- res$Inv + tpx*vp_pen
+      } else {
+        res$Pen <- res$Pen + tpx*vp_pen
+      }
+      # viudez y orfandad
+      res$Suc <- res$Suc + readt(viu[[3-sexo]][x-19]*tpx*qx)*vp_pen
+      res$Suc <- res$Suc + readt(orf[[x-19]]*tpx*qx)*vp_pen
     } else {
-      
+      if(pensionados$COD_PARENTESCO[id] == 1){
+        
+      }
     }
   }
 }
