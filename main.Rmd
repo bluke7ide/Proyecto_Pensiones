@@ -516,7 +516,7 @@ proy_est <- function(int, inf){
     px <- 1-qx[[sexo]][[x - 19]]
     vpx <- 1-qx[[3-sexo]][[x - 19]]
     pix <- 1-all_qix[[sexo]][(x-19):96]
-    cuotash <- c(cuotash, rep(0, 95))
+    cuotash <- c(cuotash, rep(0, 100))
     salariosh <- unlist(cotizaciones[id,])
     first_pen <- T
     roll_pen <- F
@@ -586,12 +586,12 @@ proy_est <- function(int, inf){
         if(estado == 1 | estado == 2 | estado == 3){
           # Se acaba justo de cambiar y hay que calcular la pensión
           cot5m <- T
-          salariosh <- salariosh*(1+inf)^(1/12*-359:(length(salariosh)-360))
+          salariosh <- salariosh*(1+inf)^(1/12*c(359:0, - 6 - 12*rep(0:(j-1),cuotash[6:(j+5)]))+jz)
           if(sum(salariosh > 5e6)<0.5){ # histórico 5 millones
             cot5m <- !salariosh > 5e6
           }
           salariosh <- salariosh[salariosh > 10000 & cot5m]
-          sal_pen <- mean(head(sort(salariosh),300))*(1+inf)^j 
+          sal_pen <- mean(head(sort(salariosh),300))
           sal_pen <-  sal_pen*porc[findInterval(sal_pen, montos) + 1]*porc_pen 
           if(sal_pen > 2e6){
             cot_pen <- sal_pen*0.05
@@ -668,12 +668,12 @@ proy_est <- function(int, inf){
 
 ```{r}
 t <- proc.time()
-datos <- proy_est(int_real, 0.02)
+est <- proy_est(int_real, 0.02)
 proc.time()-t
 ```
 
 ```{r}
-colSums(datos)/1e9
+colSums(est)/1e9
 ```
 
 ## Paralelización
