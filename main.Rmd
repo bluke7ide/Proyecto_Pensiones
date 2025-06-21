@@ -218,128 +218,14 @@ colSums(datos)
 ```
 
 
-# desde 0 >:(
+# Segundo modelo deterministico
 ## Objetivo
 calcular las pensiones por anualidades de mortalidad, en la función traerlas a vp
-
-## Pensión por invalidez a edad $x \in [20, 115]$
 ```{r}
-pen_inv <- function(){
-  w <- 115
-  pen_inv <- list()
-  for(sex in 1:2){
-    inv <- list()
-    for(x in 20:w){
-      res <- (w-x+1)
-      px <- 1-sapply(1:res, function(y) all_qx[[sex]][x+y, y]) # por si acaso, 
-      # la edad es una más en la tabla all_qx
-      qi <- all_qix[[sex]][(x-19):96]
-      pi <- 1-qi
-      tpx <- cumprod(px)
-      tpix <- c(1,cumprod(pi)[-res]) # prioridad de invalidez sobre retiro
-      vida <- sapply(1:res, function(x) c(tpix[0:(x-1)], rep(qi[x]*tpix[x], res-x+1)))
-      vida <- t(vida*tpx)
-      diag(vida) <- diag(vida)
-      inv[[x-19]] <- vida
-    }
-    pen_inv[[sex]] <- inv
-  }
-  return(pen_inv)
-}
-```
-
-```{r}
-inv <- pen_inv()
-```
-
-## Pensión por vejez a edad $x \in [20, 115]$
-Como depende del individuo, se calculan todos los posibles casos de pensión por edad por sexo
-```{r}
-sob_vej <- function(){
-  w <- 115
-  pen <- list()
-  for(sex in 1:2){
-    ret <- list()
-    for(x in 20:w){
-      res <- (w-x+1)
-      px <- 1-sapply(1:res, function(y) all_qx[[sex]][x+y, y])
-      pi <- 1-all_qix[[1]][(x-19):96]
-      tpx <- cumprod(px)
-      tpix <- cumprod(pi) # prioridad invalidez sobre retiro
-      vida <- t(sapply(1:res, function(x) c(tpix[1:x], rep(tpix[x], res-x))*tpx))
-      ret[[x-19]] <- vida
-    }
-    pen[[sex]] <- ret
-  }
-  return(pen)
-}
-```
-
-```{r}
-pen <- sob_vej()
-```
-
-## Pensión por viudez a edad $x \in [20, 115]$
-```{r}
-pen_viu <- function(){
-  w <- 115
-  pen_viu <- list()
-  for(sex in 1:2){
-    viu <- list()
-    for(x in 20:w){
-      res <- (w-x+1)
-      if(x < 50){
-        porc_viu <- c(rep(0.5, 50-x), rep(0.6, 10), rep(0.7, w+1-60))
-      } else if(x < 60){
-        porc_viu <- c(rep(0.6, 60-x), rep(0.7, w+1-60))
-      } else {
-        porc_viu <- c(rep(0.7, res))
-      }
-      vpx <- 1 - sapply(1:res, function(y) all_qx[[3-sex]][x+y, y])
-      vida <- t(sapply(1:res, function(x) c(rep(0, x-1), cumprod(vpx[x:res]))*porc_viu))
-      viu[[x-19]] <- vida
-    }
-    pen_viu[[sex]] <- viu
-  }
-  return(pen_viu)
-}
-```
-
-```{r}
-viu <- pen_viu()
-```
-
-## Pensión por orfandad a edad $x \in [20, 115]$
-```{r}
-pen_orf <- function(){
-  w <- 115
-  orf <- list()
-  for(x in 20:49){
-    res <- (w-x+1)
-    if(x < 25){
-      porc_orf <- c(rep(0, 25-x), rep(0.3, 25), rep(0, res+x-50))
-    } else if(x<50){
-      porc_orf <- c(rep(0.3, 50-x), rep(0, res-50+x))
-    } else {
-      orf[[x-19]]  <- rep(0, res)
-      next
-    }
-
-    opx <- 1 - (sapply(1:res, function(y) all_qx[[1]][x+y, y]) + 
-                  sapply(1:res, function(y) all_qx[[2]][x+y, y]))/2
-    vida <- t(sapply(1:res, function(x) c(rep(0, x-1), cumprod(opx[x:res]))*porc_orf))
-    orf[[x-19]] <- vida
-  }
-  return(orf)
-}
-```
-
-```{r}
-orf <- pen_orf()
+source("cod/anualidades.R")
 ```
 
 ## Precálculo de los qx
-
 ```{r}
 pc_qx <- function(){
     w <- 115
@@ -371,90 +257,7 @@ readt <- function(mat){
 ```
 
 ```{r}
-vp_pen_fut <- function(int, inf){
-  v <- (1+inf)/(1+int) 
-  anual <- (1 - v)/(v^(-1/12)-1)
-  anmag <- (anual + v^(11/12)) 
-  cot_min <- sapply(0:95, function(y) cotizacion_minima(20+y, 2)[1])
-  edad_min <- sapply(0:95, function(y) cotizacion_minima(20+y, 2)[2])
-  res <- data.frame(Inv = rep(0, 96), Pen = 0, Suc = 0, SEM = 0, Cot = 0, Cuotas = 0)
-  # Doble iteración para recorrer toda la data, individuos y años
-  for(id in 1:5196){
-    # Preliminares del individuo
-    x <- cotizantes$edad[id]
-    sexo <- cotizantes$sexo[id]
-    cuota_ini <- cotizantes$cuotas[id]
-    int_years <- 0:(115-x)
-    vp_pen <- c(pensiones[[id]],0)
-    ind2_cot <- vp_pen > 2e6
-    ind3_cot <- vp_pen > 3.5e6
-    cot_pen <- rep(0, length(vp_pen))
-    cot_pen[ind2_cot] <- vp_pen[ind2_cot]*0.05
-    vp_pen[ind2_cot] <- vp_pen[ind2_cot]*0.95
-    cot_pen[ind3_cot] <- cot_pen[ind3_cot] + vp_pen[ind3_cot] - 3.5e6
-    vp_pen[ind3_cot] <- 3.5e6
-    vp_pen <- vp_pen*anmag
-    cot_pen <- cot_pen*anmag
-    n_cot <- cuota_ini + cumsum(curv_dens[(x-19)+int_years])
-    if(sexo == 1){
-      cond_pen <- n_cot >= 300 & x+int_years >= 65
-    } else {
-      cond_pen <- n_cot >= cot_min[int_years+1] & x+int_years >= edad_min[int_years+1]
-    }
-    ini_pen <- first(which(cond_pen))
-    cot_ad <- (n_cot[ini_pen]-300)/1200 + 1
-    porc_pen <- sapply(int_years+1, function(y) min(1.25,max(0,n_cot[y]-n_cot[ini_pen])*2/1500+cot_ad))
-    
-    # Inicialización del dataframe del individuo
-    per <- data.frame(inv = rep(0,115-x+1), pen = 0, viu = 0, orf = 0, cotinv = 0, cotpen = 0, cotviu = 0, cotorf = 0)
-
-    data_inv <- inv[[sexo]][[x-19]]
-    cond_inv <- n_cot >= 180 | cot_min_inv(x+int_years)
-    cond_invp <- (n_cot>=60)*n_cot/180
-    data_pen <- pen[[sexo]][[x-19]]
-    cond_penp <- (n_cot >= 180 & x+int_years >= 65)*n_cot/300
-    
-    # Condiciones de vejez
-    qr <- c(rep(0, ini_pen-1), (0.09)^(0:(115-x+1-ini_pen))*0.9)
-    temp <- data_pen*(cond_pen*porc_pen + (!cond_pen * cond_penp))*qr
-    per$pen <- readt(temp*vp_pen)
-    per$cotpen <- readt(temp*cot_pen)
-    
-    # Condiciones de invalidez
-    qr <- c(rep(1, ini_pen-1), (0.09)^(0:(115-x+1-ini_pen))*0.9)
-
-    temp <- data_inv*(cond_inv + (!cond_inv & cond_invp))*qr
-    per$inv <- readt(temp*vp_pen)
-    per$cotinv <- readt(temp*cot_pen)
-
-    # Condiciones de sucesión 
-    mux <- qx[[sexo]][[x-20]]
-    cond_suc <- (n_cot >= 180)*c(1,diag(data_pen)[-ncol(data_pen)])*mux*((n_cot >= 300)*porc_pen+(!n_cot >= 300)*n_cot/300)
-    suc_pen <- (per$pen+per$inv)*mux +  cond_suc*vp_pen*qr
-    suc_cot <- (per$cotpen+per$cotinv)*mux +  cond_suc*cot_pen*qr
-    # no importa invalidez y muerte al mismo tiempo, entonces por eso el 1 al inicio. 
-    # Los demás si para no contabilizar doble pensión
-    
-    per$viu <- readt(viu[[sexo]][[x-19]]*suc_pen)
-    per$cotviu <- readt(viu[[sexo]][[x-19]]*suc_cot)
-    if(x < 50){
-      per$orf <- readt(orf[[x-19]]*suc_pen)
-      per$cotorf <- readt(orf[[x-19]]*suc_cot)
-    }
-    res$Inv <- res$Inv + c(per$inv, rep(0, 95-(115-x)))
-    res$Pen <- res$Pen + c(per$pen, rep(0, 95-(115-x)))
-    res$Suc <- res$Suc + c(per$viu + per$orf, rep(0, 95-(115-x)))
-    res$Cot <- res$Cot + c(per$cotinv+ per$cotpen + per$cotviu + per$cotorf, rep(0, 95-(115-x)))
-    
-    # Cotizaciones futuras
-    cuotas <- diag(data_pen)*qr*cumprod(curv_sal[x-19+int_years])*cotizantes$sal_prom[id]*curv_dens[(x-19)+int_years]
-    res$Cuotas <- res$Cuotas + c(cuotas, rep(0, 95-(115-x)))
-  }
-  res$Cuotas <- res$Cuotas*0.15*v^(-1/2)
-  res$SEM <- 0.085*anual*(res$Inv+res$Pen+res$Suc)/anmag
-  
-  return(t(res*v^((1:96))))
-}
+source("cod/vp_pen_fut.R")
 ```
 
 ```{r}
@@ -477,9 +280,12 @@ curva_densidad$std <- curva_densidad$std/12
 
 ```{r}
 cotizaciones <- cotizaciones*niveles
+```
+
+```{r}
 cuotas <- list()
 for(i in 1:5196){
-  cuotas[[i]] <- sapply(26:30, function(x) sum(cotizaciones[i,1:12+(12*(x-1))] > 1e4))
+  cuotas[[i]] <- sapply(27:30, function(x) sum(cotizaciones[i,1:12+(12*(x-1))] > 1e4))
 }
 ```
 
@@ -497,31 +303,76 @@ proy_est <- function(int, inf){
   v <- (1+inf)/(1+int)
   porc <- c(0.525,0.51, 0.494, 0.478, 0.462, 0.446, 0.43)
   montos <- c(2,3,4,5,6,8) * 367108.55
-  res <- data.frame(Inv = rep(0, 96), Pen = 0, Suc = 0, CotAct = 0, CotPen = 0, SEM = 0)
+  res <- data.frame(Inv = 0, Pen = 0, Suc = 0, SEM = 0, 
+                    InvF = rep(0, 96), PenF = 0, SucF = 0,SEMF = 0, CotAct = 0, CotPen = 0)
   anual <- (1-v)/(v^(-1/12)-1)
+  anmag <- (anual + v^(11/12)) 
   min_inv <- sapply(20:115, function(x) cot_min_inv(x))
-  for(id in 1:5196){
-    cuotash <- cuotas[[id]]
-    cuota <- cotizantes$cuotas[id]
-    sexo <- cotizantes$sexo[id]
-    x <- cotizantes$edad[id]
-    salario <- cotizantes$sal_prom[id] 
-    estado <- 0
-    px <- 1-qx[[sexo]][[x - 19]]
-    vpx <- 1-qx[[3-sexo]][[x - 19]]
-    pix <- 1-all_qix[[sexo]][(x-19):96]
-    cuotash <- c(cuotash, rep(0, 100))
-    salariosh <- unlist(cotizaciones[id,])
-    first_pen <- T
-    roll_pen <- F
+  for(id in 1:5561){
     cond_hij <- F
     cond_viu <- F
-    porc_pen <- 1
     cot_pen <- 0
+    if(id <= 5196){
+      cuotash <- cuotas[[id]]
+      cuota <- cotizantes$cuotas[id]
+      sexo <- cotizantes$sexo[id]
+      x <- cotizantes$edad[id]
+      salario <- cotizantes$sal_prom[id] 
+      estado <- 0
+      px <- 1-qx[[sexo]][[x - 19]]
+      vpx <- 1-qx[[3-sexo]][[x - 19]]
+      pix <- 1-all_qix[[sexo]][(x-19):96]
+      cuotash <- c(cuotash, rep(0, 100))
+      salariosh <- unlist(cotizaciones[id,])
+      first_pen <- T
+      roll_pen <- F
+      porc_pen <- 1
+    } else {
+      if(id == 5197){
+        res$InvF <- res$Inv
+        res$PenF <- res$Pen
+        res$SucF <- res$Suc
+        res$SEMF <- res$SEM
+        res$Inv <- 0
+        res$Pen <- 0
+        res$Suc <- 0
+        res$SEM <- 0
+      }
+      i <- id - 5196
+      x <- pensionados$edad[i]
+      sexo <- pensionados$sexo[i]
+      sal_pen <- pensionados$MONTO[i]*anmag
+      tipo <- pensionados$COD_TIPO_PENSION[i]
+
+      if(tipo == "Invalidez"){
+        estado <- 2        
+        px <- 1-qx[[sexo]][[x - 19]]
+        vpx <- 1-qx[[3-sexo]][[x - 19]]
+      } else if(tipo == "Vejez"){
+        estado <- 1
+        px <- 1-qx[[sexo]][[x - 19]]
+        vpx <- 1-qx[[3-sexo]][[x - 19]]
+      } else {
+        estado <- 3
+        if(pensionados$COD_PARENTESCO[i] == "H"){
+          if(x >= 25){
+            next
+          }
+          cond_hij <- T      
+          opx <- 1 - oqx[[x+1]]
+          c <- 0
+          x <- x + 25
+        } else {
+          cond_viu <- T
+          vpx <- 1-qx[[sexo]][[x - 19]]
+        }
+      }
+    }
+    
     for(j in 1:(115-x)){
       if(estado == 0){ # Trabaja
         if(runif(1) > px[j]){ # Muerte directa
-          if(cuota >= 180 | sum(cuotash[(j+2):(j+4)])>=12){ # Solo si aplica
+          if(cuota >= 180 | sum(cuotash[(j+2):(j+3)])>=12){ # Solo si aplica
             estado <- 3
             cond_viu <- T
             if(x+j-25 >=0 & x+j-25 <25){
@@ -536,11 +387,11 @@ proy_est <- function(int, inf){
         } else if(runif(1)>pix[j]){ # Invalidez
           if(cuotash[j+1] >= 180){
             estado <- 2
-          } else if(x + j-1 < 48 & sum(cuotash[(j+2):(j+4)])>=12 & cuota > min_inv[x+j-20]){
+          } else if(x + j-1 < 48 & sum(cuotash[(j+2):(j+3)])>=12 & cuota > min_inv[x+j-20]){
             estado <- 2
-          } else if(x + j-1 >= 48 & sum(cuotash[j:(j+4)])>=24 & cuota > min_inv[x+j-20]){
+          } else if(x + j-1 >= 48 & sum(cuotash[j:(j+3)])>=24 & cuota > min_inv[x+j-20]){
             estado <- 2
-          } else if(cuota >= 60 & (sum(cuotash[(j+2):(j+4)])>=12|sum(cuotash[j:(j+4)])>=24)){
+          } else if(cuota >= 60 & (sum(cuotash[(j+2):(j+3)])>=12|sum(cuotash[j:(j+3)])>=24)){
             estado <- 2
             porc_pen <- cuota/180
           } else { # No hay pensión ni sucesoria, gracias por aportar
@@ -580,12 +431,15 @@ proy_est <- function(int, inf){
         if(estado == 1 | estado == 2 | estado == 3){
           # Se acaba justo de cambiar y hay que calcular la pensión
           cot5m <- T
-          salariosh <- salariosh*(1+inf)^(1/12*c(359:0, - 6 - 12*rep(0:(j-1),cuotash[6:(j+5)]))+jz)
-          if(sum(salariosh > 5e6)<0.5){ # histórico 5 millones
+          salariosh <- salariosh*(1+inf)^(1/12*c(rep(0, 360),  -6 - 12*rep(0:(j-1),cuotash[6:(j+5)])))
+          if(sum(salariosh > 5e6)/length(salariosh)<0.5){ # histórico 5 millones
             cot5m <- !salariosh > 5e6
           }
           salariosh <- salariosh[salariosh > 10000 & cot5m]
           sal_pen <- mean(head(sort(salariosh),300))
+          if(is.na(sal_pen)){
+            break
+          }
           sal_pen <-  sal_pen*porc[findInterval(sal_pen, montos) + 1]*porc_pen 
           if(sal_pen > 2e6){
             cot_pen <- sal_pen*0.05
@@ -595,7 +449,8 @@ proy_est <- function(int, inf){
             cot_pen <- cot_pen + sal_pen - 3.5e6
             sal_pen <- 3.5e6
           }
-          sal_pen <- (anual+v^(11/12))*sal_pen # anualidad más aguinaldo
+          sal_pen <- anmag*sal_pen 
+          cot_pen <- anmag*cot_pen
           if(estado == 1){
             res$Pen[j] <- res$Pen[j] + sal_pen
             res$CotPen[j] <- res$CotPen[j] + cot_pen
@@ -654,8 +509,9 @@ proy_est <- function(int, inf){
       }
     } 
   }
-  res[,1:5] <- res[,1:5]*v^(-1/2)*v^(1:95)
-  res$SEM <- (res$Inv + res$Pen + res$Suc)*anual/(anual+v^(11/12))*0.085
+  res <- res*v^(-1/2)*v^(1:96)
+  res$SEM <- (res$Inv + res$Pen + res$Suc)*anual/anmag*0.085
+  res$SEMF <- (res$InvF + res$PenF + res$SucF)*anual/anmag*0.085
   return(res)
 }
 ```
