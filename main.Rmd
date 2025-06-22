@@ -587,12 +587,29 @@ fig <- ggplot(costo, aes(x = Año)) +
     )
   ) +
   theme_minimal() +
-  labs(y = "Personas")
+  labs(y = "Monto")
 fig %>% ggplotly()
 # ggsave( "res/costo_pen_millones.pdf", fig, width = 8, height = 5)
 ```
 
+## Ingresos
+```{r}
+fig <- ggplot(ingresos, aes(x = Año)) + 
+  geom_line(aes(y = Cuotas/1e6),color = "darkred", linewidth = 1.2) +
+  theme_minimal() +
+  labs(y = "Monto")
+fig %>% ggplotly()
+# ggsave( "res/cuotas_millones.pdf", fig, width = 8, height = 5)
+```
 
+```{r}
+fig <- ggplot(ingresos, aes(x = Año)) + 
+  geom_line(aes(y = Inversiones/1e9), color = "blue", linewidth = 1.2) +
+  theme_minimal() +
+  labs(y = "Monto")
+fig %>% ggplotly()
+# ggsave( "res/inversiones_mil_millones.pdf", fig, width = 8, height = 5)
+```
 
 
 
