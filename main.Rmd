@@ -481,6 +481,7 @@ fig %>% ggplotly()
 # ggsave( "res/orf_cot.pdf", fig, width = 8, height = 5)
 ```
 
+## Pensionados actuales
 ```{r}
 demo_pen <- pen_dem()
 demo_pen <- cbind(Año = 2025:2120, demo_pen)
@@ -507,6 +508,8 @@ fig %>% ggplotly()
 # ggsave( "res/demo_pen.pdf", fig, width = 8, height = 5)
 ```
 
+# Proyecciones financieras
+## Egresos
 ```{r}
 egresos <- data.frame(
   Año = 2025:2120,
@@ -519,6 +522,7 @@ egresos <- data.frame(
 write_xlsx(egresos, "res/egresos.xlsx")
 ```
 
+## Ingresos
 ```{r}
 ingresos <- data.frame(
   Año = 2025:2120,
@@ -538,6 +542,10 @@ for(i in 2:96){
   (ingresos$Cuotas[i] + ingresos$Cotizaciones[i]-egresos$Total[i])/2)*int_real
   ingresos$Total[i] <- ingresos$Cuotas[i] + ingresos$Cotizaciones[i] + ingresos$Inversiones[i]
 }
+```
+
+## Reservas
+```{r}
 reserva <- data.frame(Año = 2025:2120,
                       Salarios = datos2$Cuotas/0.15,
                       Reserva_Inicial = ingresos$Reserva,
@@ -554,7 +562,35 @@ write_xlsx(ingresos, "res/ingresos.xlsx")
 write_xlsx(reserva, "res/reserva.xlsx")
 ```
 
+# Gráficos
+## Costo de pensiones
+```{r}
+costo <- data.frame(
+  Año = 2025:2120,
+  Inv = rowSums(data.frame(datos2$Inv, pen_act$Inv))/1e6,
+  Suc = rowSums(data.frame(datos2$Suc, pen_act$Suc))/1e6,
+  Pen = rowSums(data.frame(datos2$Pen, pen_act$Pen))/1e6
+)
+```
 
+```{r}
+fig <- ggplot(costo, aes(x = Año)) + 
+  geom_line(aes(y = Pen, color = "Vejez"), linewidth = 1.2) + 
+  geom_line(aes(y = Inv, color = "Invalidez"), linewidth = 1.2) + 
+  geom_line(aes(y = Suc, color = "Sucesión"), linewidth = 1.2) + 
+  scale_color_manual(
+    name = "Categoría",
+    values = c(
+      "Vejez" = "green",
+      "Invalidez" = "orange",
+      "Sucesión" = "purple"
+    )
+  ) +
+  theme_minimal() +
+  labs(y = "Personas")
+fig %>% ggplotly()
+# ggsave( "res/costo_pen_millones.pdf", fig, width = 8, height = 5)
+```
 
 
 
