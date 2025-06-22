@@ -491,7 +491,31 @@ fig %>% ggplotly()
 # ggsave( "res/orf_cot.pdf", fig, width = 8, height = 5)
 ```
 
+```{r}
+demo_pen <- pen_dem()
+demo_pen <- cbind(Año = 2025:2120, demo_pen)
+```
 
+```{r}
+fig <- ggplot(demo_pen, aes(x = Año)) + 
+  geom_line(aes(y = Pen, color = "Vejez"), linewidth = 1.2) + 
+  geom_line(aes(y = Inv, color = "Invalidez"), linewidth = 1.2) + 
+  geom_line(aes(y = Viu, color = "Viudez"), linewidth = 1.2) + 
+  geom_line(aes(y = Orf, color = "Orfandad"), linewidth = 1.2) + 
+  scale_color_manual(
+    name = "Categoría",
+    values = c(
+      "Vejez" = "green",
+      "Invalidez" = "orange",
+      "Viudez" = "purple", 
+      "Orfandad" = "navyblue"
+    )
+  ) +
+  theme_minimal() +
+  labs(y = "Personas")
+fig %>% ggplotly()
+# ggsave( "res/demo_pen.pdf", fig, width = 8, height = 5)
+```
 
 
 

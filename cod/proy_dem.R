@@ -43,9 +43,7 @@ proy_dem <- function(){
     mux <- qx[[sexo]][[x-20]]
     cond_suc <- (n_cot >= 180)*c(1,diag(data_pen)[-ncol(data_pen)])*mux*((n_cot >= 300)+(n_cot <= 300 & n_cot >= 180))
     suc_pen <- (per$pen+per$inv)*mux +  cond_suc*qr
-    # no importa invalidez y muerte al mismo tiempo, entonces por eso el 1 al inicio. 
-    # Los demás si para no contabilizar doble pensión
-    
+
     per$viu <- readt(viu[[sexo]][[x-19]]*suc_pen)
     if(x < 50){
       per$orf <- readt(orf[[x-19]]*suc_pen)
@@ -104,3 +102,40 @@ pen_orf <- function(){
   return(orf)
 }
 orf <- pen_orf()
+
+pen_dem <- function(){
+  res <- data.frame(Inv = rep(0, 96), Pen = 0, Viu = 0, Orf = 0)
+  for(id in 1:365){
+    x <- pensionados$edad[id]
+    sexo <- pensionados$sexo[id]
+    tipo <- pensionados$COD_TIPO_PENSION[id]
+    if(tipo == "Invalidez" | tipo == "Vejez"){ # pension regular
+      
+      aqx <- qx[[sexo]][[x-19]]
+      tpx <- c(1,cumprod(1-aqx))
+      aqx <- c(aqx,1)
+      if(tipo == "Invalidez" ){
+        res$Inv <- res$Inv + c(tpx,rep(0, 95-(115-x)))
+      } else {
+        res$Pen <- res$Pen + c(tpx,rep(0, 95-(115-x)))
+      }
+      # viudez y orfandad
+      
+      res$Viu <- res$Viu + c(0, readt(viu[[3-sexo]][[x-19]]*tpx*aqx),rep(0, 94-(115-x)))
+      if(x < 50){
+        res$Orf <- res$Orf + c(0, readt(orf[[x-19]]*tpx*aqx),rep(0, 94-(115-x)))        
+      }
+      
+    } else {
+      if(pensionados$COD_PARENTESCO[id] == "H"){
+        if(x >= 25){ # ya no más pensión
+          next
+        }
+        res$Orf <- res$Orf + c(1,cumprod(1-oqx[[x+1]]), rep(0, 95-(25-x)))
+      } else {
+        res$Viu <- res$Viu + c(1,cumprod(1-qx[[sexo]][[x-20]]), rep(0, 94-(115-x)))
+      }
+    }
+  }
+  return(res)
+}
