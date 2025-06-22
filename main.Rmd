@@ -528,7 +528,7 @@ colSums(est)/1e9
 
 ## Paralelización
 ```{r}
-variables <- c("cotizantes", "cotizaciones", "qx", "all_qix", "int_real", "proy_est", "cot_min_inv", "cuotas", "curva_densidad", "curva_salarial", "oqx")
+variables <- c("cotizantes", "cotizaciones", "qx", "all_qix", "int_real", "proy_est", "cot_min_inv", "cuotas", "curva_densidad", "curva_salarial", "oqx", "pensionados")
 proy_est_par <- function(n, cores) {
   # Crear un clúster seguro
   cl <- makeCluster(cores) #min(detectCores()/2,
@@ -549,14 +549,34 @@ proy_est_par <- function(n, cores) {
 ```
 
 ```{r}
-n <- 100
-system.time(proyecciones <- proy_est_par(n, 5))
+n <- 1000
+# system.time(proyecciones <- proy_est_par(n, 4))
+# copia <- lapply(1:n, function(x) as.data.frame(proyecciones[,x]))
+# write.csv(copia, "res/datos.csv")
 ```
 
 ```{r}
-sumas <- sapply(1:n, function(x) colSums(as.data.frame(proyecciones[,x])))
-sapply(1:6, function(y) mean(sumas[y,]))/1e9
+proyecciones <- read.csv("res/datos.csv")
+proyecciones <- proyecciones %>% select(-1)
+proyecciones <- lapply(1:1000, function(x) proyecciones[,1:10 + 10*(x-1)])
 ```
+
+
+```{r}
+sumas <- sapply(1:n, function(x) colSums(as.data.frame(proyecciones[[x]])))
+(media <- sapply(1:10, function(y) mean(sumas[y,]))/1e9)[1:9]
+```
+
+```{r}
+
+```
+
+
+## Convergencia 
+```{r}
+sum((media*1000 + colSums(est)/1e9)/1001/media)/10
+```
+
 
 ```{r}
 # IMPORTANTE: ninguna pensión sobrepasa los 2 millones
