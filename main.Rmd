@@ -429,6 +429,21 @@ colSums(pen_act)/1e9
 ```
 
 # Cálculo beneficio devengado, determinístico
+Es el mismo código solo que añadiendo n_cot/cuota_ini
+```{r}
+source("cod/ben_dev.R")
+```
+
+```{r}
+system.time(ben <- ben_dev(int_real, 0.02))
+```
+
+```{r}
+rowSums(ben)[1:5]/1e9
+```
+
+# Proyecciones demográficas, determinístico
+## Cotizantes actuales
 ```{r}
 
 ```
