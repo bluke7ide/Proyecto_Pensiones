@@ -519,6 +519,40 @@ egresos <- data.frame(
 write_xlsx(egresos, "res/egresos.xlsx")
 ```
 
+```{r}
+ingresos <- data.frame(
+  Año = 2025:2120,
+  Cuotas = datos2$Cuotas,
+  Cotizaciones = datos2$Cot,
+  Reserva = 0,
+  Inversiones = 0,
+  Total = 0
+)
+ingresos$Reserva[1] <- 437031071554.9
+ingresos$Inversiones[1] <- (ingresos$Reserva[1] + 
+  (ingresos$Cuotas[1] + ingresos$Cotizaciones[1]-egresos$Total[1])/2)*int_real
+ingresos$Total[1] <- ingresos$Cuotas[1] + ingresos$Cotizaciones[1] + ingresos$Inversiones[1]
+for(i in 2:96){
+  ingresos$Reserva[i] <- ingresos$Reserva[i-1] + ingresos$Total[i-1] - egresos$Total[i-1]
+  ingresos$Inversiones[i] <- (ingresos$Reserva[i] + 
+  (ingresos$Cuotas[i] + ingresos$Cotizaciones[i]-egresos$Total[i])/2)*int_real
+  ingresos$Total[i] <- ingresos$Cuotas[i] + ingresos$Cotizaciones[i] + ingresos$Inversiones[i]
+}
+reserva <- data.frame(Año = 2025:2120,
+                      Salarios = datos2$Cuotas/0.15,
+                      Reserva_Inicial = ingresos$Reserva,
+                      Ingresos = ingresos$Total,
+                      Egresos = egresos$Total,
+                      Reserva_final = c(ingresos$Reserva[-1],
+  ingresos$Reserva[96] + ingresos$Total[96] - egresos$Total[96])) %>% 
+  mutate(
+    Tasa_Ingresos = Ingresos/Salarios,
+    Tasa_Costos = Egresos/Salarios
+  )
+ingresos <- ingresos %>% select(-Reserva)
+write_xlsx(ingresos, "res/ingresos.xlsx")
+write_xlsx(reserva, "res/reserva.xlsx")
+```
 
 
 
