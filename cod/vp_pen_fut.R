@@ -56,7 +56,7 @@ vp_pen_fut <- function(int, inf){
     
     # Condiciones de sucesión 
     mux <- qx[[sexo]][[x-20]]
-    cond_suc <- (n_cot >= 180)*c(1,diag(data_pen)[-ncol(data_pen)])*mux*((n_cot >= 300)*porc_pen+(!n_cot >= 300)*n_cot/300)
+    cond_suc <- (n_cot >= 180)*c(1,diag(data_pen)[-ncol(data_pen)])*mux*((n_cot >= 300)*porc_pen+(n_cot < 300 & n_cot >= 180)*n_cot/300)
     suc_pen <- (per$pen+per$inv)*mux +  cond_suc*vp_pen*qr
     suc_cot <- (per$cotpen+per$cotinv)*mux +  cond_suc*cot_pen*qr
     # no importa invalidez y muerte al mismo tiempo, entonces por eso el 1 al inicio. 

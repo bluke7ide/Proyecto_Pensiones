@@ -445,10 +445,51 @@ rowSums(ben)[1:5]/1e9
 # Proyecciones demográficas, determinístico
 ## Cotizantes actuales
 ```{r}
-
+source("cod/proy_dem.R")
 ```
 
+```{r}
+demo <- proy_dem()
+demo <- cbind(Año = 2025:2120, demo)
+```
 
+```{r}
+fig <- ggplot(demo, aes(x = Año)) + 
+  geom_line(aes(y = Act, color = "Activo"), linewidth = 1.2) + 
+  geom_line(aes(y = Inact, color = "Inactivo"), linewidth = 1.2) + 
+  geom_line(aes(y = Pen, color = "Vejez"), linewidth = 1.2) + 
+  geom_line(aes(y = Inv, color = "Invalidez"), linewidth = 1.2) + 
+  geom_line(aes(y = Viu, color = "Viudez"), linewidth = 1.2) + 
+  geom_line(aes(y = Orf, color = "Orfandad"), linewidth = 1.2) + 
+  scale_color_manual(
+    name = "Categoría",
+    values = c(
+      "Activo" = "red",
+      "Inactivo" = "gray",
+      "Vejez" = "green",
+      "Invalidez" = "orange",
+      "Viudez" = "purple", 
+      "Orfandad" = "navyblue"
+    )
+  ) +
+  theme_minimal() +
+  labs(y = "Personas")
+
+fig %>% ggplotly()
+# ggsave( "res/demo_cot.pdf", fig, width = 8, height = 5)
+```
+
+Recordando que después de 2054 no pueden haber hijos ya que se cumple la edad máxima
+Si hoy una persona tiene 21 años (edad mínima del fondo) entonces al 2054 tendrá 50 años,
+por lo que su hijo tiene 25 años y ya no recibe pensión
+```{r}
+fig <- ggplot(demo, aes(x = Año, y = Orf)) + 
+  geom_line(color = "navyblue", linewidth = 1.2)+
+  theme_minimal() +
+  labs(y = "Personas")
+fig %>% ggplotly()
+# ggsave( "res/orf_cot.pdf", fig, width = 8, height = 5)
+```
 
 
 
