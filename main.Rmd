@@ -267,12 +267,12 @@ source("cod/vp_pen_fut.R")
 
 ```{r}
 t <- proc.time()
-datos2 <- vp_pen_fut(int_real, 0.02)/1e9
+datos2 <- vp_pen_fut(int_real, 0.02)
 proc.time() - t
 ```
 
 ```{r}
-rowSums(datos2)
+colSums(datos2)/1e9
 ```
 
 # Modelo estocástico
@@ -307,17 +307,7 @@ oqx <- sapply(0:24, function(x)
 
 ## Función estocástica
 ```{r}
-source("cod/proy_est.R")
-```
-
-```{r}
-t <- proc.time()
-est <- proy_est(int_real, 0.02)
-proc.time()-t
-```
-
-```{r}
-colSums(est)/1e9
+rowSums(est)/1e9
 ```
 
 ## Paralelización
@@ -517,6 +507,17 @@ fig %>% ggplotly()
 # ggsave( "res/demo_pen.pdf", fig, width = 8, height = 5)
 ```
 
+```{r}
+egresos <- data.frame(
+  Año = 2025:2120,
+  Curso = rowSums(pen_act[,1:3]),
+  Futuras = rowSums(datos2[,1:3]),
+  SEM = rowSums(data.frame(pen_act$SEM, datos2$SEM))
+) %>% mutate(
+  Total = Curso + Futuras + SEM
+)
+write_xlsx(egresos, "res/egresos.xlsx")
+```
 
 
 

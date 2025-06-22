@@ -49,7 +49,7 @@ fig <- ggplot(df_piramide, aes(x = grupo_edad, y = poblacion, fill = sexo)) +
     plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
   )
 
-# ggsave("res/piramide.pdf", fig)
+# ggsave("res/aed/piramide.pdf", fig)
 
 df <- poblacion %>%
   mutate(
@@ -99,7 +99,7 @@ fig <- ggplot(resumen, aes(x = grupo, y = n, fill = categoria)) +
     legend.position = "right"
   )
 
-# ggsave("res/resumen_pob.pdf", fig)
+# ggsave("res/aed/resumen_pob.pdf", fig)
 
 cotizantes_activos <- cotizantes[cotizantes$estado == 1, ]
 
@@ -130,7 +130,7 @@ fig <- ggplot(cotizantes_activos, aes(x = factor(edad), fill = sexo)) +
   ) +
   theme_minimal() 
 
-# ggsave("res/dist_activos.pdf", fig)
+# ggsave("res/aed/dist_activos.pdf", fig)
 
 cotizantes <- cotizantes %>% 
   mutate(antiguedad = apply(BD_Cotizantes[, 4:ncol(BD_Cotizantes)], 1, function(x) which(x != 0)[1]))
@@ -144,7 +144,7 @@ fig <- ggplot(cotizantes, aes(x = antiguedad, fill = sexo)) +
   ) +
   theme_minimal()
 
-# ggsave("res/activos_ant.pdf", fig)
+# ggsave("res/aed/activos_ant.pdf", fig)
 
 bar_totals <- pensionados %>%
   count(edad) %>%
@@ -163,7 +163,7 @@ fig <- ggplot(pensionados, aes(x = factor(edad), fill = sexo)) +
     y = "Cantidad de cotizantes activos"
   ) +
   theme_minimal() 
-# ggsave("res/dist_pensionados.pdf", fig)
+# ggsave("res/aed/dist_pensionados.pdf", fig)
 
 pensionados <- pensionados %>% 
   mutate(antiguedad = 2024 - year(BD_Pensionados$`Rige de la Pensión`))
@@ -174,7 +174,7 @@ fig <- ggplot(pensionados, aes(x = antiguedad, fill = sexo)) +
     y = "Cantidad de pensionados"
   ) +
   theme_minimal() 
-# ggsave("res/pensionados_ant.pdf", fig)
+# ggsave("res/aed/pensionados_ant.pdf", fig)
 
 n_meses <- ncol(BD_Cotizantes) - 3
 
@@ -215,7 +215,7 @@ fig <- ggplot(afiliados, aes(x = fecha, y = activos)) +
     y = "Cantidad de afiliados"
   ) +
   theme_minimal() 
-# ggsave("res/comportamiento.pdf", fig)
+# ggsave("res/aed/comportamiento.pdf", fig)
 
 diffs <- activo[, -1, drop = FALSE] - activo[, -ncol(activo), drop = FALSE]
 

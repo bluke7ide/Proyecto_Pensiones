@@ -80,5 +80,5 @@ vp_pen_fut <- function(int, inf){
   res$Cuotas <- res$Cuotas*0.15*v^(-1/2)
   res$SEM <- 0.085*anual*(res$Inv+res$Pen+res$Suc)/anmag
   
-  return(t(res*v^((1:96))))
+  return(res*v^((1:96)))
 }
