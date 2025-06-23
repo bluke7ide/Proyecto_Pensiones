@@ -646,8 +646,8 @@ for(i in 1:5){
 
 ```{r}
 razones <- as.data.frame(t(rs))
-razones <- rbind((int_real+0.02*(1:5-2))*100, razones)
-razones <- cbind(c(0,(0.02+0.01*(1:5-2))*100), razones)
+razones <- rbind((int_real+0.02*(1:5-3))*100, razones)
+razones <- cbind(c(0,(0.02+0.01*(1:5-3))*100), razones)
 names(razones)[1] <- "Inf"
 write_xlsx(razones, "res/matriz_sens.xlsx")
 ```
