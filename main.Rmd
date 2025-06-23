@@ -611,10 +611,46 @@ fig %>% ggplotly()
 # ggsave( "res/inversiones_mil_millones.pdf", fig, width = 8, height = 5)
 ```
 
+# Análisis de sensibilidad
+## Pesimista
+```{r}
+colSums(vp_pen_fut(int_real-0.005, 0.025))/1e9
+```
 
+```{r}
+colSums(pensiones_actuales(int_real-0.005, 0.025))/1e9
+```
 
+## Optimista
+```{r}
+colSums(vp_pen_fut(int_real+0.005, 0.015))/1e9
+```
 
+```{r}
+colSums(pensiones_actuales(int_real+0.005, 0.015))/1e9
+```
 
+## Matriz de sensibilidad
+Razones de solvencia para 25 casos
+```{r}
+act <- 437031071554.9+40930473298.54
+rs <- matrix(0,5,5)
+for(i in 1:5){
+  for(j in 1:5){
+    cot <- colSums(vp_pen_fut(int_real+0.02*(i-3), 0.02+0.01*(j-3)))
+    pens <- colSums(pensiones_actuales(int_real+0.02*(i-3), 0.02+0.01*(j-3)))
+    rs[i,j] <- (act + sum(cot[5:6]))/(sum(cot[1:4]) + sum(pens))
+  }
+}
+```
+
+```{r}
+razones <- as.data.frame(t(rs))
+razones <- rbind((int_real+0.02*(1:5-2))*100, razones)
+razones <- cbind(c(0,(0.02+0.01*(1:5-2))*100), razones)
+names(razones)[1] <- "Inf"
+write_xlsx(razones, "res/matriz_sens.xlsx")
+```
 
 
 
