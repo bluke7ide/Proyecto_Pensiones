@@ -272,7 +272,7 @@ proc.time() - t
 ```
 
 ```{r}
-colSums(datos2)/1e9
+sum(colSums(datos2)[1:3])
 ```
 
 # Modelo estocástico
@@ -360,7 +360,33 @@ sapply(1:9, function(y) quantile(sumas[y,],0.01))/1e9
 
 ## Convergencia a 3 cifras
 ```{r}
-sum((media*1000 + colSums(est)/1e9)/1001/media)/10
+sum((media*1000 + rowSums(est)/1e9)/1001/media)/10
+```
+
+## Gráfico de convergencia
+```{r}
+suma_est <- sapply(1:n, function(x) sum(proyecciones[[x]]))/1e11
+media_acumulada <- cumsum(suma_est) / seq_along(suma_est)
+df <- data.frame(
+  Iteracion = 1:n,
+  MediaAcumulada = media_acumulada
+)
+
+# Valor de referencia (media final)
+media_final <- mean(suma_est)
+
+# Gráfico con ggplot2
+fig <- ggplot(df, aes(x = Iteracion, y = MediaAcumulada)) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  geom_hline(yintercept = media_final, linetype = "dashed", color = "red", linewidth = 1) +
+  labs(
+    title = "Convergencia de las simulaciones estocásticas",
+    x = "Número de simulaciones",
+    y = "Media acumulada (en escala 1e11)"
+  ) +
+  theme_minimal()
+fig %>% ggplotly()
+# ggsave("res/conv_est.pdf", fig, width = 8, height = 5)
 ```
 
 # Cálculo de pensiones actuales, determinístico
@@ -415,7 +441,7 @@ pen_act <- pensiones_actuales(int_real, 0.02)
 ```
 
 ```{r}
-colSums(pen_act)/1e9
+sum(colSums(pen_act)[1:3])
 ```
 
 # Cálculo beneficio devengado, determinístico
@@ -429,7 +455,7 @@ system.time(ben <- ben_dev(int_real, 0.02))
 ```
 
 ```{r}
-rowSums(ben)[1:5]/1e9
+rowSums(ben)[1:5]
 ```
 
 # Proyecciones demográficas, determinístico
@@ -614,20 +640,20 @@ fig %>% ggplotly()
 # Análisis de sensibilidad
 ## Pesimista
 ```{r}
-colSums(vp_pen_fut(int_real-0.005, 0.025))/1e9
+colSums(vp_pen_fut(int_real-0.005, 0.025))
 ```
 
 ```{r}
-colSums(pensiones_actuales(int_real-0.005, 0.025))/1e9
+colSums(pensiones_actuales(int_real-0.005, 0.025))
 ```
 
 ## Optimista
 ```{r}
-colSums(vp_pen_fut(int_real+0.005, 0.015))/1e9
+colSums(vp_pen_fut(int_real+0.005, 0.015))
 ```
 
 ```{r}
-colSums(pensiones_actuales(int_real+0.005, 0.015))/1e9
+colSums(pensiones_actuales(int_real+0.005, 0.015))
 ```
 
 ## Matriz de sensibilidad
