@@ -135,7 +135,7 @@ proy_est <- function(int, inf){
             cot5m <- !salariosh > 5e6
           }
           salariosh <- salariosh[salariosh > 10000 & cot5m]
-          sal_pen <- mean(head(sort(salariosh),300))
+          sal_pen <- mean(head(sort(salariosh, decreasing = T),300))
           if(is.na(sal_pen)){
             break
           }

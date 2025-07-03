@@ -307,7 +307,16 @@ oqx <- sapply(0:24, function(x)
 
 ## Función estocástica
 ```{r}
-rowSums(est)/1e9
+source("cod/proy_est.R")
+```
+
+```{r}
+system.time(est <- proy_est(int_real, 0.02))
+```
+
+
+```{r}
+colSums(est)/1e9
 ```
 
 ## Paralelización
