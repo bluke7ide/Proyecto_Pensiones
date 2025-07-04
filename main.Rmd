@@ -213,12 +213,12 @@ source("cod/vp_pen_futuras.R")
 ## Cálculo del VP de beneficios de pensiones futuras
 ```{r}
 t <- proc.time()
-datos <- vp_pen_futuras(int_real, 0.02)/1e9 
+datos <- vp_pen_futuras(int_real, 0.02) 
 proc.time() - t
 ```
 
 ```{r}
-colSums(datos)
+colSums(datos)/1e9
 ```
 
 
@@ -344,9 +344,9 @@ proy_est_par <- function(n, cores) {
 ## Guardado de las proyecciones
 ```{r}
 n <- 1000
-# system.time(proyecciones <- proy_est_par(n, 4))
-# copia <- lapply(1:n, function(x) as.data.frame(proyecciones[,x]))
-# write.csv(copia, "res/datos.csv")
+system.time(proyecciones <- proy_est_par(n, 4))
+copia <- lapply(1:n, function(x) as.data.frame(proyecciones[,x]))
+write.csv(copia, "res/datos.csv")
 ```
 
 ```{r}
@@ -358,7 +358,7 @@ proyecciones <- lapply(1:1000, function(x) proyecciones[,1:10 + 10*(x-1)])
 ## Media estocástica
 ```{r}
 sumas <- sapply(1:n, function(x) colSums(as.data.frame(proyecciones[[x]])))
-(media <- sapply(1:10, function(y) mean(sumas[y,]))/1e9)[1:9]
+(media <- sapply(1:10, function(y) mean(sumas[y,])))
 ```
 
 ## Intervalo de confianza 99% 
@@ -369,7 +369,7 @@ sapply(1:10, function(y) quantile(sumas[y,],0.01))/1e9
 
 ## Convergencia a 3 cifras
 ```{r}
-sum((media*1000 + rowSums(est)/1e9)/1001/media)/10
+sum((media*1000 + colSums(est)/1e9)/1001/media)/10
 ```
 
 ## Gráfico de convergencia
@@ -449,7 +449,7 @@ pen_act <- pensiones_actuales(int_real, 0.02)
 ```
 
 ```{r}
-sum(colSums(pen_act)[1:3])
+colSums(pen_act)/1e9
 ```
 
 # Cálculo beneficio devengado, determinístico
@@ -463,7 +463,7 @@ system.time(ben <- ben_dev(int_real, 0.02))
 ```
 
 ```{r}
-rowSums(ben)[1:5]
+colSums(ben)
 ```
 
 # Proyecciones demográficas, determinístico
@@ -543,12 +543,17 @@ fig %>% ggplotly()
 ```
 
 # Proyecciones financieras
+```{r}
+datos <- as.data.frame(datos[c(2:96,1),])
+rownames(datos) <- 1:96
+```
+
 ## Egresos
 ```{r}
 egresos <- data.frame(
   Año = 2025:2120,
   Curso = rowSums(pen_act[,1:3]),
-  Futuras = rowSums(datos2[,1:3]),
+  Futuras = rowSums(datos[,1:3]),
   SEM = rowSums(data.frame(pen_act$SEM, datos2$SEM))
 ) %>% mutate(
   Total = Curso + Futuras + SEM
@@ -648,7 +653,7 @@ fig %>% ggplotly()
 # Análisis de sensibilidad
 ## Pesimista
 ```{r}
-colSums(vp_pen_fut(int_real-0.005, 0.025))
+colSums(vp_pen_futuras(int_real-0.005, 0.025))
 ```
 
 ```{r}
@@ -657,7 +662,7 @@ colSums(pensiones_actuales(int_real-0.005, 0.025))
 
 ## Optimista
 ```{r}
-colSums(vp_pen_fut(int_real+0.005, 0.015))
+colSums(vp_pen_futuras(int_real+0.005, 0.015))
 ```
 
 ```{r}
@@ -671,7 +676,7 @@ act <- 437031071554.9+40930473298.54
 rs <- matrix(0,5,5)
 for(i in 1:5){
   for(j in 1:5){
-    cot <- colSums(vp_pen_fut(int_real+0.02*(i-3), 0.02+0.01*(j-3)))
+    cot <- colSums(vp_pen_futuras(int_real+0.02*(i-3), 0.02+0.01*(j-3)))
     pens <- colSums(pensiones_actuales(int_real+0.02*(i-3), 0.02+0.01*(j-3)))
     rs[i,j] <- (act + sum(cot[5:6]))/(sum(cot[1:4]) + sum(pens))
   }

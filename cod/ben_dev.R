@@ -1,18 +1,24 @@
 ben_dev <- function(int, inf){
   v <- (1+inf)/(1+int) 
   anual <- (1 - v)/(v^(-1/12)-1)
-  anmag <- (anual + v^(11/12)) 
-  cot_min <- sapply(0:95, function(y) cotizacion_minima(20+y, 2)[1])
-  edad_min <- sapply(0:95, function(y) cotizacion_minima(20+y, 2)[2])
-  res <- data.frame(Inv = rep(0, 96), Pen = 0, Suc = 0, SEM = 0, Cot = 0, Cuotas = 0)
+  anmag <- (anual + v^(11/12)) # anual más aguinaldo
+  years <- 0:95
+  Inv <- 0
+  Pen <- 0
+  Suc <- 0
+  Cot <- 0
+  Cuotas <- 0
+  
   # Doble iteración para recorrer toda la data, individuos y años
   for(id in 1:5196){
     # Preliminares del individuo
     x <- cotizantes$edad[id]
     sexo <- cotizantes$sexo[id]
-    cuota_ini <- cotizantes$cuotas[id]
-    int_years <- 0:(115-x)
-    vp_pen <- c(pensiones[[id]],0)
+    ini_cot <- cotizantes$cuotas[id]
+    n_cot <- ini_cot
+    salario <- cotizantes$sal_prom[id]
+    porc_viu <- porcentaje_viudez(x)
+    vp_pen <- c(pensiones[[id]], rep(0, x-19))
     ind2_cot <- vp_pen > 2e6
     ind3_cot <- vp_pen > 3.5e6
     cot_pen <- rep(0, length(vp_pen))
@@ -22,64 +28,95 @@ ben_dev <- function(int, inf){
     vp_pen[ind3_cot] <- 3.5e6
     vp_pen <- vp_pen*anmag
     cot_pen <- cot_pen*anmag
-    n_cot <- cuota_ini + cumsum(curv_dens[(x-19)+int_years])
-    dev <- cuota_ini/n_cot
-    if(sexo == 1){
-      cond_pen <- n_cot >= 300 & x+int_years >= 65
-    } else {
-      cond_pen <- n_cot >= cot_min[int_years+1] & x+int_years >= edad_min[int_years+1]
-    }
-    ini_pen <- first(which(cond_pen))
-    cot_ad <- (n_cot[ini_pen]-300)/1200 + 1
-    porc_pen <- sapply(int_years+1, function(y) min(1.25,max(0,n_cot[y]-n_cot[ini_pen])*2/1500+cot_ad))
-    
     # Inicialización del dataframe del individuo
-    per <- data.frame(inv = rep(0,115-x+1), pen = 0, viu = 0, orf = 0, cotinv = 0, cotpen = 0, cotviu = 0, cotorf = 0)
+    first_pen <- T
+    per <- data.frame(act = rep(0, 96), inv = 0, pen = 0, viu = 0, orp = 0,
+                      cotp = 0, cotv = 0, coth = 0, cuotas = 0)
+    per$act[1] <- 1
     
-    data_inv <- inv[[sexo]][[x-19]]
-    cond_inv <- n_cot >= 180 | cot_min_inv(x+int_years)
-    cond_invp <- (n_cot>=60)*n_cot/180
-    data_pen <- pen[[sexo]][[x-19]]
-    cond_penp <- (n_cot >= 180 & x+int_years >= 65)*n_cot/300
-    
-    # Condiciones de vejez
-    qr <- c(rep(0, ini_pen-1), (0.09)^(0:(115-x+1-ini_pen))*0.9)
-    temp <- data_pen*(cond_pen*porc_pen + (!cond_pen * cond_penp))*qr
-    per$pen <- readt(temp*vp_pen*dev)
-    per$cotpen <- readt(temp*cot_pen*dev)
-    
-    # Condiciones de invalidez
-    qr <- c(rep(1, ini_pen-1), (0.09)^(0:(115-x+1-ini_pen))*0.9)
-    
-    temp <- data_inv*(cond_inv + (!cond_inv & cond_invp))*qr
-    per$inv <- readt(temp*vp_pen*dev)
-    per$cotinv <- readt(temp*cot_pen*dev)
-    
-    # Condiciones de sucesión 
-    mux <- qx[[sexo]][[x-20]]
-    cond_suc <- (n_cot >= 180)*c(1,diag(data_pen)[-ncol(data_pen)])*mux*((n_cot >= 300)*porc_pen+(!n_cot >= 300)*n_cot/300)
-    suc_pen <- (per$pen+per$inv)*mux +  cond_suc*vp_pen*qr
-    suc_cot <- (per$cotpen+per$cotinv)*mux +  cond_suc*cot_pen*qr
-    # no importa invalidez y muerte al mismo tiempo, entonces por eso el 1 al inicio. 
-    # Los demás si para no contabilizar doble pensión
-    
-    per$viu <- readt(viu[[sexo]][[x-19]]*suc_pen)
-    per$cotviu <- readt(viu[[sexo]][[x-19]]*suc_cot)
-    if(x < 50){
-      per$orf <- readt(orf[[x-19]]*suc_pen*dev)
-      per$cotorf <- readt(orf[[x-19]]*suc_cot*dev)
+    for(j in years){
+      if(x + j > 115){ # ya no puede vivir
+        break
+      }
+      # Preliminares 
+      qx <- all_qx[[sexo]][x+j+1,j+1]
+      px <- 1-qx
+      v_px <- 1 - all_qx[[3-sexo]][x+j+1,j+1]
+      qix <- all_qix[[sexo]][x+j-19]
+      pix <- 1 - qix
+      cot_min <- cotizacion_minima(x+j, sexo)
+      dens <- curv_dens[x+j-19]
+      n_cot <- n_cot + dens
+      ncot180 <- n_cot >= 180
+      per$act[j+2] <- per$act[j+1]*px*pix
+      per$cotp[j+2] <- per$cotp[j+1]*px
+      per$inv[j+2] <- per$inv[j+1]*px
+      salario <- salario*curv_sal[x+j-19]
+      dev <- ini_cot/n_cot
+      
+      # Invalidez
+      if(ncot180 | (dens >= 0.5 & cot_min_inv(x+j))){
+        per$inv[j+2] <- per$act[j+1]*qix*vp_pen[j+1]*dev + per$inv[j+2] 
+        per$cotp[j+2] <- per$act[j+1]*qix*cot_pen[j+1]*dev + per$cotp[j+2]
+      } else if(n_cot>=60){
+        porc_invp <- n_cot/180
+        per$inv[j+2] <- per$act[j+1]*qix*porc_invp*vp_pen[j+1]*dev + per$inv[j+2] 
+        per$cotp[j+2] <- per$act[j+1]*qix*porc_invp*cot_pen[j+1]*dev + per$cotp[j+2]
+      }   
+      per$pen[j+2] <- per$pen[j+1]*px
+      
+      # Vejez
+      if(n_cot >= cot_min[1] & x+j >= cot_min[2]){
+        if(first_pen){
+          first_pen <- F
+          ini_cot <- n_cot
+          cot_ad <- (ini_cot-300)/1200
+        }
+        cot_post <- max(0, n_cot - ini_cot)*2/1500
+        porc_pen <- min(1.25, 1+cot_ad +cot_post)
+        
+        per$pen[j+2] <- per$act[j+2]*0.9*porc_pen*vp_pen[j+1]*dev + per$pen[j+2]
+        per$cotp[j+2] <- per$act[j+2]*0.9*porc_pen*cot_pen[j+1]*dev + per$cotp[j+2]
+        per$act[j+2] <- per$act[j+2]*0.1
+        
+      } else if(ncot180 & x+j >= 65) {
+        porc_penp <- n_cot/300
+        per$pen[j+2] <- per$act[j+2]*0.9*porc_penp*vp_pen[j+1]*dev + per$pen[j+2]
+        per$cotp[j+2] <- per$act[j+2]*0.9*porc_penp*cot_pen[j+1]*dev + per$cotp[j+2]
+        per$act[j+2] <- per$act[j+2]*0.1 # puede seguir trabajando 
+      } 
+      per$cuotas[j+2] <- dens*salario*per$act[j+2] 
+      # Sucesión
+      per$cotv[j+2] <- per$cotv[j+1]*px + per$cotp[j+1]*qx
+      cond_hij <- x+j-25 < 25 & x+j-25 >=0 # esta última para ver si nació
+      ind_suc <- 2
+      per$viu[j+2] <- per$viu[j+1]*v_px + sum(per[j+1, 2:3])*qx # ocupa repetir la pensión
+      if(cond_hij){
+        o_px <- 1 - 0.5*(all_qx[[1]][x-24+j,j+1] + all_qx[[2]][x-24+j,j+1])
+        per$orp[j+2] <- per$orp[j+1]*o_px + sum(per[j+1, 2:3])*qx # ya hay monto pensión
+        per$coth[j+2] <- per$coth[j+1]*o_px + per$cotp[j+1]*qx
+      }
+      if(ncot180 | dens >= 0.5){
+        per$viu[j+2] <- per$viu[j+2] + per$act[j+1]*qx*vp_pen[j+1]*dev
+        per$cotv[j+2] <- per$cotv[j+2] + per$act[j+1]*qx*cot_pen[j+1]*dev
+        if(cond_hij){
+          per$orp[j+2] <- per$orp[j+2] + per$act[j+1]*qx*vp_pen[j+1]*dev
+          per$coth[j+2] <- per$coth[j+2] + per$act[j+1]*qx*cot_pen[j+1]*dev
+        }
+      } 
     }
-    res$Inv <- res$Inv + c(per$inv, rep(0, 95-(115-x)))
-    res$Pen <- res$Pen + c(per$pen, rep(0, 95-(115-x)))
-    res$Suc <- res$Suc + c(per$viu + per$orf, rep(0, 95-(115-x)))
-    res$Cot <- res$Cot + c(per$cotinv+ per$cotpen + per$cotviu + per$cotorf, rep(0, 95-(115-x)))
+    per$viu <- per$viu*porc_viu
+    per$orp <- per$orp*0.3
+    per$cotv <- per$cotv*porc_viu
+    per$coth <- per$coth*0.3
+    Inv <- Inv + per$inv
+    Pen <- Pen + per$pen
+    Suc <- Suc + per$orp + per$viu
+    Cot <- Cot + per$cotp + per$cotv + per$coth
+    Cuotas <- Cuotas + per$cuotas
     
-    # Cotizaciones futuras
-    cuotas <- diag(data_pen)*qr*cumprod(curv_sal[x-19+int_years])*cotizantes$sal_prom[id]*curv_dens[(x-19)+int_years]
-    res$Cuotas <- res$Cuotas + c(cuotas, rep(0, 95-(115-x)))
   }
-  res$Cuotas <- res$Cuotas*0.15*v^(-1/2)
-  res$SEM <- 0.085*anual*(res$Inv+res$Pen+res$Suc)/anmag
-  
-  return(t(res*v^((1:96))))
+  Cuotas <- Cuotas*0.15*v^(1/2)
+  SEM <- 0.085*anual*(Inv+Pen+Suc)/(anual + v^(11/12))
+  return(data.frame(Inv,Pen,Suc,SEM,Cot,Cuotas)*v^years)
 }
