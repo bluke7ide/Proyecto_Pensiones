@@ -22,7 +22,7 @@ source("cod/load_database.R")
 source("cod/graficos.R")
 ```
 
-```{r}
+```{r, echo=FALSE}
 rm(activo,
    afiliados, 
    bar_totals,
@@ -95,9 +95,24 @@ source("cod/funciones_alternas.R")
 ```
 
 ### Curva salarial
-```{r}
+```{r, echo=FALSE}
 curv_sal <- curva_salarial$s_x
-plot(cumprod(curv_sal))
+df <- data.frame(
+  Periodo = curva_salarial$Edad,
+  ValorAcumulado = cumprod(curv_sal)
+)
+
+fig <- ggplot(df, aes(x = Periodo, y = ValorAcumulado)) +
+  geom_line(color = "#0072B2", size = 1.2) +
+  geom_point(color = "#0072B2", size = 2) +
+  labs(
+    title = "Curva salarial",
+    x = "Período",
+    y = "Valor acumulado"
+  ) +
+  theme_minimal()
+fig %>% ggplotly()
+# ggsave("res/curva_sal.pdf", fig, width = 8, height = 5)
 ```
 
 ### Propiedades de cotizaciones
@@ -106,9 +121,24 @@ cotizantes <- cbind(cotizantes, cot_prop())
 ```
 
 ### Curva de densidades de cotizacion
-```{r}
+```{r, message=FALSE}
 curv_dens <- curva_densidad$media
-plot(curv_dens)
+df_dens <- data.frame(
+  Periodo = curva_densidad$edad,
+  Densidad = curv_dens
+)
+
+fig <- ggplot(df_dens, aes(x = Periodo, y = Densidad)) +
+  geom_line(color = "#009E73", size = 1.2) +
+  geom_point(color = "#009E73", size = 2) +
+  labs(
+    title = "Curva de densidad de cotizaciones",
+    x = "Período",
+    y = "Densidad"
+  ) +
+  theme_minimal() 
+fig %>% ggplotly()
+# ggsave("res/curva_dens.pdf", fig, width = 8, height = 5)
 ```
 
 ### Obtención de matrices de probabilidad de muerte
@@ -163,19 +193,34 @@ sal_pen <- function(){
 }
 ```
 
-
 ```{r}
 system.time(pensiones <- sal_pen())
 ```
 
 ### Obtención del interés
-```{r}
+```{r, echo=FALSE}
 hoja <- BD_Financiero[[3]]
 int_mes <- sapply(1:120, function(x)  (hoja[x+1, 2] - hoja[x,2] - hoja[x,4] + hoja[x,5])/(hoja[x,2] + (hoja[x,4] - hoja[x,5])/2)+1)
 int_mes <- unlist(int_mes)
 int <- sapply(1:109, function(x) prod(int_mes[x:(11+x)])-1)
-plot(int)
-lines((0:109)*-0.0003859 + 0.177)
+
+df_int <- data.frame(
+  Periodo = 0:(length(int)-1),
+  Valor = int,
+  Linea = (0:108) * -0.0003859 + 0.177
+)
+
+fig <- ggplot(df_int, aes(x = Periodo)) +
+  geom_line(aes(y = Valor), color = "#D55E00", size = 1.2) +
+  geom_line(aes(y = Linea), color = "black", linetype = "dashed", size = 1) +
+  labs(
+    title = "Tasas de interés observadas en el fondo",
+    x = "Período",
+    y = "Valor"
+  ) +
+  theme_minimal()
+fig %>% ggplotly()
+# ggsave("res/intereses.pdf", fig, width = 8, height = 5)
 ```
 
 ```{r}
@@ -183,7 +228,7 @@ inf_max <- IPC$Nivel[564]/IPC$Nivel[552] - 1
 (int_real <- mean(int) - inf_max)
 ```
 
-```{r}
+```{r, echo=FALSE}
 rm(BD_Cotizantes,
    BD_Pensionados,
    BD_Financiero,
@@ -220,7 +265,6 @@ proc.time() - t
 ```{r}
 colSums(datos)/1e9
 ```
-
 
 # Segundo modelo deterministico
 ## Objetivo
@@ -344,9 +388,9 @@ proy_est_par <- function(n, cores) {
 ## Guardado de las proyecciones
 ```{r}
 n <- 1000
-system.time(proyecciones <- proy_est_par(n, 4))
-copia <- lapply(1:n, function(x) as.data.frame(proyecciones[,x]))
-write.csv(copia, "res/datos.csv")
+# system.time(proyecciones <- proy_est_par(n, 4))
+# copia <- lapply(1:n, function(x) as.data.frame(proyecciones[,x]))
+# write.csv(copia, "res/datos.csv")
 ```
 
 ```{r}
@@ -373,7 +417,7 @@ sum((media*1000 + colSums(est)/1e9)/1001/media)/10
 ```
 
 ## Gráfico de convergencia
-```{r}
+```{r, echo=FALSE}
 suma_est <- sapply(1:n, function(x) sum(proyecciones[[x]]))/1e11
 media_acumulada <- cumsum(suma_est) / seq_along(suma_est)
 df <- data.frame(
@@ -477,7 +521,7 @@ demo <- proy_dem()
 demo <- cbind(Año = 2025:2120, demo)
 ```
 
-```{r}
+```{r, echo=FALSE}
 fig <- ggplot(demo, aes(x = Año)) + 
   geom_line(aes(y = Act, color = "Activo"), linewidth = 1.2) + 
   geom_line(aes(y = Inact, color = "Inactivo"), linewidth = 1.2) + 
@@ -506,7 +550,7 @@ fig %>% ggplotly()
 Recordando que después de 2054 no pueden haber hijos ya que se cumple la edad máxima
 Si hoy una persona tiene 21 años (edad mínima del fondo) entonces al 2054 tendrá 50 años,
 por lo que su hijo tiene 25 años y ya no recibe pensión
-```{r}
+```{r, echo=FALSE}
 fig <- ggplot(demo, aes(x = Año, y = Orf)) + 
   geom_line(color = "navyblue", linewidth = 1.2)+
   theme_minimal() +
@@ -521,7 +565,7 @@ demo_pen <- pen_dem()
 demo_pen <- cbind(Año = 2025:2120, demo_pen)
 ```
 
-```{r}
+```{r, echo=FALSE}
 fig <- ggplot(demo_pen, aes(x = Año)) + 
   geom_line(aes(y = Pen, color = "Vejez"), linewidth = 1.2) + 
   geom_line(aes(y = Inv, color = "Invalidez"), linewidth = 1.2) + 
@@ -612,7 +656,7 @@ costo <- data.frame(
 )
 ```
 
-```{r}
+```{r, echo=FALSE}
 fig <- ggplot(costo, aes(x = Año)) + 
   geom_line(aes(y = Pen, color = "Vejez"), linewidth = 1.2) + 
   geom_line(aes(y = Inv, color = "Invalidez"), linewidth = 1.2) + 
@@ -632,7 +676,7 @@ fig %>% ggplotly()
 ```
 
 ## Ingresos
-```{r}
+```{r, echo=FALSE}
 fig <- ggplot(ingresos, aes(x = Año)) + 
   geom_line(aes(y = Cuotas/1e6),color = "darkred", linewidth = 1.2) +
   theme_minimal() +
@@ -641,7 +685,7 @@ fig %>% ggplotly()
 # ggsave( "res/cuotas_millones.pdf", fig, width = 8, height = 5)
 ```
 
-```{r}
+```{r, echo=FALSE}
 fig <- ggplot(ingresos, aes(x = Año)) + 
   geom_line(aes(y = Inversiones/1e9), color = "blue", linewidth = 1.2) +
   theme_minimal() +
@@ -673,24 +717,27 @@ colSums(pensiones_actuales(int_real+0.005, 0.015))
 Razones de solvencia para 25 casos
 ```{r}
 act <- 437031071554.9+40930473298.54
-rs <- matrix(0,5,5)
-for(i in 1:5){
-  for(j in 1:5){
-    cot <- colSums(vp_pen_futuras(int_real+0.02*(i-3), 0.02+0.01*(j-3)))
-    pens <- colSums(pensiones_actuales(int_real+0.02*(i-3), 0.02+0.01*(j-3)))
-    rs[i,j] <- (act + sum(cot[5:6]))/(sum(cot[1:4]) + sum(pens))
-  }
-}
+# rs <- matrix(0,5,5)
+# for(i in 1:5){
+#   for(j in 1:5){
+#     cot <- colSums(vp_pen_futuras(int_real+0.02*(i-3), 0.02+0.01*(j-3)))
+#     pens <- colSums(pensiones_actuales(int_real+0.02*(i-3), 0.02+0.01*(j-3)))
+#     rs[i,j] <- (act + sum(cot[5:6]))/(sum(cot[1:4]) + sum(pens))
+#   }
+# }
 ```
 
 ```{r}
-razones <- as.data.frame(t(rs))
-razones <- rbind((int_real+0.02*(1:5-3))*100, razones)
-razones <- cbind(c(0,(0.02+0.01*(1:5-3))*100), razones)
-names(razones)[1] <- "Inf"
-write_xlsx(razones, "res/matriz_sens.xlsx")
+# razones <- as.data.frame(t(rs))
+# razones <- rbind((int_real+0.02*(1:5-3))*100, razones)
+# razones <- cbind(c(0,(0.02+0.01*(1:5-3))*100), razones)
+# names(razones)[1] <- "Inf"
+# write_xlsx(razones, "res/matriz_sens.xlsx")
 ```
 
+```{r}
+read_excel("res/matriz_sens.xlsx", skip = 1)
+```
 
 
 
